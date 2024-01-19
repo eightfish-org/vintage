@@ -78,7 +78,12 @@ impl BlockChain {
     }
 
     fn add_block(&mut self, block: Block) {
-        self.persist_block(&block).expect("persistence error.");
+        self.add_block_to_table(TABLE_BLOCKS, block);
+    }
+
+    fn add_block_to_table(&mut self, table: TableDefinition<&str, &str>, block: Block) {
+        self.persist_block_to_table(table, &block)
+            .expect("persistence error.");
         self.blocks.push(block);
     }
 
@@ -282,8 +287,8 @@ impl Db {
     fn drop_table(&self, table: TableDefinition<&str, &str>) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
-            let table = write_txn.open_table(table)?;
-            drop(table)
+            let result = write_txn.delete_table(table)?;
+            info!("{:?}", result);
         }
         write_txn.commit()?;
 
@@ -312,14 +317,14 @@ fn test_store_block_and_restore_block() {
     // initialization
     let genesis_block = BlockChain::genesis();
     let prev_hash = genesis_block.header.hash.clone();
-    blockchain.add_block(genesis_block);
+    blockchain.add_block_to_table(TABLE_BLOCKS_FORTEST, genesis_block);
 
     let b1 = Block::new(1, prev_hash, vec![]);
     let prev_hash = b1.header.hash.clone();
-    blockchain.add_block(b1);
+    blockchain.add_block_to_table(TABLE_BLOCKS_FORTEST, b1);
 
     let b2 = Block::new(2, prev_hash, vec![]);
-    blockchain.add_block(b2);
+    blockchain.add_block_to_table(TABLE_BLOCKS_FORTEST, b2);
 
     let block_vec = blockchain.blocks.clone();
 
