@@ -1,7 +1,9 @@
 mod block;
 mod blockchain;
 mod db;
+mod tx;
 
-pub use self::block::*;
+pub(crate) use self::block::*;
 pub use self::blockchain::*;
-pub use self::db::*;
+pub(crate) use self::db::*;
+pub(crate) use self::tx::*;

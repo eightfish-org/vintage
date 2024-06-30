@@ -1,0 +1,9 @@
+[package]
+name = "vintage_worker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { version = "1.0.86" }
+vintage_msg = { path = "../vintage_msg" }
+vintage_blockchain = { path = "../vintage_blockchain" }

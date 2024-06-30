@@ -1,3 +1,11 @@
 [workspace]
-members = ["vintage", "vintage_blockchain"]
+members = [
+    "vintage",
+    "vintage_blockchain",
+    "vintage_consensus",
+    "vintage_msg",
+    "vintage_network",
+    "vintage_utils",
+    "vintage_worker",
+]
 resolver = "2"

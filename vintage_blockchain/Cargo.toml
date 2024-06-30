@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = { version = "1.0.79" }
-hex = { version = "0.4.3" }
+anyhow = { version = "1.0.86" }
 log = { version = "0.4.21" }
 redb = { version = "1.5.1" }
 serde = { version = "1.0.203", features = ["derive"] }
-serde_json = { version = "1.0.111" }
+serde_json = { version = "1.0.117" }
 sha2 = { version = "0.10.8" }
-time = { version = "0.3.36" }
+tokio = { version = "1.38.0"}
+uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+vintage_msg = { path = "../vintage_msg" }
+vintage_utils = { path = "../vintage_utils" }

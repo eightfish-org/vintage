@@ -1,0 +1,65 @@
+use crate::{BlockChainMsg, ConsensusMsg, NetworkMsg, WorkerMsg};
+use tokio::sync::mpsc;
+
+pub struct WorkerMsgChannels {
+    // receiver
+    pub msg_receiver: mpsc::Receiver<WorkerMsg>,
+    // sender
+    pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+}
+
+pub struct BlockChainMsgChannels {
+    // receiver
+    pub msg_receiver: mpsc::Receiver<BlockChainMsg>,
+    // sender
+    pub worker_msg_sender: mpsc::Sender<WorkerMsg>, // -> worker
+    pub network_msg_sender: mpsc::Sender<NetworkMsg>, // -> network
+}
+
+pub struct ConsensusMsgChannels {
+    // receiver
+    pub msg_receiver: mpsc::Receiver<ConsensusMsg>,
+    // sender
+    pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+}
+
+pub struct NetworkMsgChannels {
+    // receiver
+    pub msg_receiver: mpsc::Receiver<NetworkMsg>,
+    // sender
+    pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+}
+
+pub fn msg_channels() -> (
+    WorkerMsgChannels,
+    BlockChainMsgChannels,
+    ConsensusMsgChannels,
+    NetworkMsgChannels,
+) {
+    let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<WorkerMsg>(usize::MAX);
+    let (blockchain_msg_sender, blockchain_msg_receiver) =
+        mpsc::channel::<BlockChainMsg>(usize::MAX);
+    let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<ConsensusMsg>(usize::MAX);
+    let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(usize::MAX);
+
+    // channels
+    (
+        WorkerMsgChannels {
+            msg_receiver: worker_msg_receiver,
+            blockchain_msg_sender: blockchain_msg_sender.clone(),
+        },
+        BlockChainMsgChannels {
+            msg_receiver: blockchain_msg_receiver,
+            worker_msg_sender,
+            network_msg_sender,
+        },
+        ConsensusMsgChannels {
+            msg_receiver: consensus_msg_receiver,
+            blockchain_msg_sender: blockchain_msg_sender.clone(),
+        },
+        NetworkMsgChannels {
+            msg_receiver: network_msg_receiver,
+            blockchain_msg_sender,
+        },
+    )
+}
