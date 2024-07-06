@@ -6,8 +6,8 @@ pub enum WorkerMsg {
 }
 
 pub enum BlockChainMsg {
-    TxFromWorker(Tx),
-    TxFromNetwork(Tx),
+    RawTx(Tx), // tx from wasm worker
+    Tx(Tx),    // tx from network
     Block(Block),
     BlockProduction(BlockProduction),
 }

@@ -1,5 +1,6 @@
 use crate::Tx;
 use serde::{Deserialize, Serialize};
+use vintage_utils::WithId;
 
 pub type BlockHeight = u64;
 pub type BlockTimestamp = u64;
@@ -21,6 +22,14 @@ pub struct BlockBody {
 pub struct Block {
     pub header: BlockHeader,
     pub body: BlockBody,
+}
+
+impl WithId for Block {
+    type Id = BlockHeight;
+
+    fn id(&self) -> &Self::Id {
+        &self.header.height
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

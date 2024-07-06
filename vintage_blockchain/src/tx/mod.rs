@@ -1,5 +1,3 @@
-mod pool;
-mod validate;
+mod tx_handler;
 
-pub(crate) use self::pool::*;
-pub(crate) use self::validate::*;
+pub(crate) use self::tx_handler::*;

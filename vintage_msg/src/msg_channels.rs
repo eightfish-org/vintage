@@ -36,11 +36,14 @@ pub fn msg_channels() -> (
     ConsensusMsgChannels,
     NetworkMsgChannels,
 ) {
-    let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<WorkerMsg>(usize::MAX);
-    let (blockchain_msg_sender, blockchain_msg_receiver) =
-        mpsc::channel::<BlockChainMsg>(usize::MAX);
-    let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<ConsensusMsg>(usize::MAX);
-    let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(usize::MAX);
+    // The maximum number of permits which a semaphore can hold.
+    const BUFFER: usize = usize::MAX >> 3;
+
+    let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<WorkerMsg>(BUFFER);
+    let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<BlockChainMsg>(BUFFER);
+    #[allow(unused_variables)]
+    let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<ConsensusMsg>(BUFFER);
+    let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(BUFFER);
 
     // channels
     (

@@ -658,6 +658,7 @@ dependencies = [
 name = "vintage_msg"
 version = "0.1.0"
 dependencies = [
+ "log",
  "serde",
  "tokio",
  "vintage_utils",
@@ -676,8 +677,11 @@ name = "vintage_utils"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "log",
+ "redb",
  "serde",
  "time",
+ "tokio",
 ]
 
 [[package]]
