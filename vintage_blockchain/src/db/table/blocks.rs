@@ -1,4 +1,4 @@
-use crate::db::DB;
+use crate::db::DbTable;
 use redb::{ReadableTable, Table};
 use serde::{Deserialize, Serialize};
 use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, TxId};
@@ -13,7 +13,7 @@ pub(crate) struct BlockInDb {
     pub tx_ids: Vec<TxId>,
 }
 
-impl DB {
+impl DbTable {
     pub fn get_block<TABLE>(
         table: &TABLE,
         block_height: BlockHeight,

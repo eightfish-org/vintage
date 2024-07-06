@@ -1,7 +1,7 @@
 mod block_handler;
 mod block_production_handler;
-mod hash;
+mod helper;
 
 pub(crate) use self::block_handler::*;
 pub(crate) use self::block_production_handler::*;
-pub(crate) use self::hash::*;
+pub(crate) use self::helper::*;

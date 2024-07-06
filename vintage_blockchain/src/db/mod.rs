@@ -1,7 +1,7 @@
-mod write;
+mod read_transaction;
+mod table;
+mod write_transaction;
 
-pub mod tables;
-
-pub(crate) use self::tables::*;
-
-pub(crate) enum DB {}
+pub(crate) use self::read_transaction::*;
+pub(crate) use self::table::*;
+pub(crate) use self::write_transaction::*;

@@ -1,14 +1,12 @@
-use crate::block::calc_block_hash;
-use crate::db::{blocks, last_block_height, txs, DB};
+use crate::block::BlockPool;
+use crate::block::{check_block_hash, check_block_height, get_block_hash};
+use crate::db::{DbRead, DbWrite};
 use anyhow::anyhow;
 use log::error;
 use redb::Database;
-use vintage_msg::{Block, BlockHeight};
-use vintage_utils::Pool;
+use vintage_msg::Block;
 
-pub type BlockPool = Pool<BlockHeight, Block>;
-
-pub fn block_handler(db: &Database, block_pool: &mut BlockPool, block: Block) {
+pub(crate) fn block_handler(db: &Database, block_pool: &mut BlockPool, block: Block) {
     if let Err(e) = block_handler_impl(db, block_pool, block) {
         error!("block handle error: {}", e);
     }
@@ -23,50 +21,28 @@ fn block_handler_impl(
         // ReadTransaction
         let transaction = db.begin_read()?;
 
-        // check txs not exist
-        {
-            let table_txs = txs::open_table(&transaction)?;
-            for tx in &block.body.txs {
-                DB::check_tx_not_exists(&table_txs, tx.id)?;
-            }
-        }
+        // check all txs not exist in db
+        DbRead::check_all_txs_not_exist_in_db(&transaction, &block.body.txs)?;
 
-        // read last_block_height
-        let last_block_height = {
-            let table_lbh = last_block_height::open_table(&transaction)?;
-            DB::get_last_block_height(&table_lbh)?
-        };
+        // get last_block height
+        let last_block_height = DbRead::get_last_block_height(&transaction)?;
 
         // check block height
-        let next_block_height = last_block_height + 1;
-        if block.header.height > next_block_height {
+        if !check_block_height(block.header.height, last_block_height)? {
+            let block_height = block.header.height;
             block_pool.insert(block);
-            return Ok(());
-        } else if block.header.height < next_block_height {
             return Err(anyhow!(
-                "the block height {}, less than {}",
-                block.header.height,
-                next_block_height,
+                "block height {}, last block height {}",
+                block_height,
+                last_block_height
             ));
         }
 
-        // read last_block
-        let last_block = {
-            let table_blocks = blocks::open_table(&transaction)?;
-            DB::get_block(&table_blocks, last_block_height)?
-                .ok_or_else(|| anyhow!("last block not found"))?
-        };
+        // read last_block hash
+        let last_block_hash = get_block_hash(&transaction, last_block_height)?;
 
         // check block hash
-        let hash = calc_block_hash(
-            block.header.height,
-            block.header.timestamp,
-            &block.body,
-            &last_block.hash,
-        );
-        if hash != block.header.hash {
-            return Err(anyhow!("block hash is invalid"));
-        }
+        check_block_hash(&block, &last_block_hash)?;
     }
 
     {
@@ -74,7 +50,7 @@ fn block_handler_impl(
         let transaction = db.begin_write()?;
 
         // write block
-        DB::write_block(&transaction, &block)?;
+        DbWrite::write_block(&transaction, &block)?;
     }
 
     Ok(())

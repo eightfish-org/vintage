@@ -1,11 +1,11 @@
-use crate::db::{txs, DB};
+use crate::db::DbRead;
 use anyhow::anyhow;
 use redb::Database;
 use tokio::sync::mpsc;
 use vintage_msg::{NetworkMsg, Tx, TxId};
 use vintage_utils::{Pool, SendMsg};
 
-pub type TxPool = Pool<TxId, Tx>;
+pub(crate) type TxPool = Pool<TxId, Tx>;
 
 pub(crate) fn raw_tx_handler(
     db: &Database,
@@ -41,8 +41,7 @@ fn check_tx_not_exist(db: &Database, tx_pool: &TxPool, tx: &Tx) -> anyhow::Resul
     }
 
     let transaction = db.begin_read()?;
-    let table_txs = txs::open_table(&transaction)?;
-    DB::check_tx_not_exists(&table_txs, tx.id)?;
+    DbRead::check_tx_not_exists(&transaction, tx.id)?;
 
     Ok(())
 }
