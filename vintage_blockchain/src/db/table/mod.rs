@@ -1,5 +1,7 @@
-pub(crate) mod blocks;
-pub(crate) mod last_block_height;
-pub(crate) mod txs;
+mod blocks;
+mod last_block_height;
+mod txs;
 
-pub(crate) enum DbTable {}
+pub(crate) use self::blocks::*;
+pub(crate) use self::last_block_height::*;
+pub(crate) use self::txs::*;

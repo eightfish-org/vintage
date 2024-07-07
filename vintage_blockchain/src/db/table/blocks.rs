@@ -1,10 +1,11 @@
-use crate::db::DbTable;
-use redb::{ReadableTable, Table};
+use redb::ReadableTable;
 use serde::{Deserialize, Serialize};
 use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, TxId};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize};
 
-define_redb_table!(BlockHeight, Vec<u8>, "last_block_height");
+define_redb_table! {
+    pub(crate) (Blocks, BlocksW) = (BlockHeight, Vec<u8>, "blocks")
+}
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct BlockInDb {
@@ -13,15 +14,15 @@ pub(crate) struct BlockInDb {
     pub tx_ids: Vec<TxId>,
 }
 
-impl DbTable {
-    pub fn get_block<TABLE>(
-        table: &TABLE,
-        block_height: BlockHeight,
-    ) -> anyhow::Result<Option<BlockInDb>>
+impl<TABLE> Blocks<TABLE>
+where
+    TABLE: ReadableTable<BlockHeight, Vec<u8>>,
+{
+    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<Option<BlockInDb>>
     where
         TABLE: ReadableTable<BlockHeight, Vec<u8>>,
     {
-        let option = table.get(block_height)?;
+        let option = self.get(block_height)?;
         match option {
             Some(access) => {
                 let (block, _bytes_read) = BlockInDb::bincode_deserialize(&access.value())?;
@@ -30,14 +31,16 @@ impl DbTable {
             None => Ok(None),
         }
     }
+}
 
+impl<'db, 'txn> BlocksW<'db, 'txn> {
     pub fn insert_block(
-        table: &mut Table<BlockHeight, Vec<u8>>,
+        &mut self,
         block_height: BlockHeight,
         block: &BlockInDb,
     ) -> anyhow::Result<()> {
         let bytes = block.bincode_serialize()?;
-        table.insert(block_height, bytes)?;
+        self.insert(block_height, bytes)?;
         Ok(())
     }
 }

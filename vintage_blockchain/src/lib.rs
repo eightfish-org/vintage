@@ -4,6 +4,7 @@ mod genesis;
 mod tx;
 
 use crate::block::{block_handler, block_production_handler, BlockPool};
+use crate::db::Db;
 use crate::tx::{raw_tx_handler, tx_handler, TxPool};
 use redb::Database;
 use tokio::sync::mpsc;
@@ -16,7 +17,7 @@ const BLOCK_POOL_CAPACITY: usize = 100;
 
 #[allow(dead_code)]
 pub struct BlockChain {
-    database: Database,
+    db: Db,
     tx_pool: TxPool,
     block_pool: BlockPool,
     msg_receiver: mpsc::Receiver<BlockChainMsg>,
@@ -28,7 +29,7 @@ impl BlockChain {
     pub fn create(channels: BlockChainMsgChannels) -> anyhow::Result<Self> {
         let database = Database::create(DB_PATH)?;
         Ok(Self {
-            database,
+            db: Db::new(database),
             tx_pool: TxPool::new(TX_POOL_CAPACITY),
             block_pool: BlockPool::new(BLOCK_POOL_CAPACITY),
             msg_receiver: channels.msg_receiver,
@@ -46,18 +47,13 @@ impl BlockChain {
             match self.msg_receiver.recv().await {
                 Some(msg) => match msg {
                     BlockChainMsg::RawTx(tx) => {
-                        raw_tx_handler(
-                            &self.database,
-                            &mut self.tx_pool,
-                            &self.network_msg_sender,
-                            tx,
-                        );
+                        raw_tx_handler(&self.db, &mut self.tx_pool, &self.network_msg_sender, tx);
                     }
                     BlockChainMsg::Tx(tx) => {
-                        tx_handler(&self.database, &mut self.tx_pool, tx);
+                        tx_handler(&self.db, &mut self.tx_pool, tx);
                     }
                     BlockChainMsg::Block(block) => {
-                        block_handler(&self.database, &mut self.block_pool, block);
+                        block_handler(&self.db, &mut self.block_pool, block);
                     }
                     BlockChainMsg::BlockProduction(block_production) => {
                         block_production_handler(block_production);

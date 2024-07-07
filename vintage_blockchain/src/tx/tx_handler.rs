@@ -1,6 +1,5 @@
-use crate::db::DbRead;
+use crate::db::{Db, DbRead};
 use anyhow::anyhow;
-use redb::Database;
 use tokio::sync::mpsc;
 use vintage_msg::{NetworkMsg, Tx, TxId};
 use vintage_utils::{Pool, SendMsg};
@@ -8,7 +7,7 @@ use vintage_utils::{Pool, SendMsg};
 pub(crate) type TxPool = Pool<TxId, Tx>;
 
 pub(crate) fn raw_tx_handler(
-    db: &Database,
+    db: &Db,
     tx_pool: &mut TxPool,
     network_msg_sender: &mpsc::Sender<NetworkMsg>,
     tx: Tx,
@@ -24,7 +23,7 @@ pub(crate) fn raw_tx_handler(
     }
 }
 
-pub(crate) fn tx_handler(db: &Database, tx_pool: &mut TxPool, tx: Tx) {
+pub(crate) fn tx_handler(db: &Db, tx_pool: &mut TxPool, tx: Tx) {
     match check_tx_not_exist(db, tx_pool, &tx) {
         Ok(_) => {
             tx_pool.insert(tx);
@@ -35,7 +34,7 @@ pub(crate) fn tx_handler(db: &Database, tx_pool: &mut TxPool, tx: Tx) {
     }
 }
 
-fn check_tx_not_exist(db: &Database, tx_pool: &TxPool, tx: &Tx) -> anyhow::Result<()> {
+fn check_tx_not_exist(db: &Db, tx_pool: &TxPool, tx: &Tx) -> anyhow::Result<()> {
     if tx_pool.contains_id(&tx.id) {
         return Err(anyhow!("tx already exists in pool"));
     }

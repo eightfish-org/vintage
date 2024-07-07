@@ -1,7 +1,4 @@
-use crate::db::DbRead;
-use crate::genesis::{GENESIS_BLOCK_HASH, GENESIS_BLOCK_HEIGHT};
 use anyhow::anyhow;
-use redb::ReadTransaction;
 use sha2::{Digest, Sha256};
 use vintage_msg::{Block, BlockBody, BlockHash, BlockHeight};
 use vintage_utils::{Pool, Timestamp};
@@ -22,20 +19,6 @@ pub(super) fn check_block_height(
     } else {
         Ok(block_height == new_block_height)
     }
-}
-
-pub(super) fn get_block_hash(
-    transaction: &ReadTransaction,
-    block_height: BlockHeight,
-) -> anyhow::Result<BlockHash> {
-    let hash = if block_height == GENESIS_BLOCK_HEIGHT {
-        GENESIS_BLOCK_HASH
-    } else {
-        DbRead::get_block(&transaction, block_height)?
-            .ok_or_else(|| anyhow!(" block {} not found", block_height))?
-            .hash
-    };
-    Ok(hash)
 }
 
 pub(super) fn calc_block_hash(

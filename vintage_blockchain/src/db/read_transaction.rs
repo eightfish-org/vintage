@@ -1,34 +1,50 @@
-use crate::db::blocks::BlockInDb;
-use crate::db::{blocks, last_block_height, txs, DbTable};
+use crate::db::LastBlockHeight;
+use crate::db::Txs;
+use crate::db::{BlockInDb, Blocks};
+use crate::genesis::{GENESIS_BLOCK_HASH, GENESIS_BLOCK_HEIGHT};
+use anyhow::anyhow;
 use redb::ReadTransaction;
-use vintage_msg::{BlockHeight, Tx, TxId};
+use vintage_msg::{BlockHash, BlockHeight, Tx, TxId};
 
-pub(crate) enum DbRead {}
+pub(crate) struct DbRead<'db> {
+    transaction: ReadTransaction<'db>,
+}
 
-impl DbRead {
-    pub fn check_tx_not_exists(transaction: &ReadTransaction, id: TxId) -> anyhow::Result<()> {
-        let table_txs = txs::open_table(transaction)?;
-        DbTable::check_tx_not_exists(&table_txs, id)
+impl<'db> DbRead<'db> {
+    pub fn new(transaction: ReadTransaction<'db>) -> Self {
+        Self { transaction }
     }
 
-    pub fn check_all_txs_not_exist_in_db(
-        transaction: &ReadTransaction,
-        txs: &Vec<Tx>,
-    ) -> anyhow::Result<()> {
-        let table_txs = txs::open_table(transaction)?;
-        DbTable::check_all_txs_not_exist_in_db(&table_txs, txs)
+    pub fn check_tx_not_exists(&self, id: TxId) -> anyhow::Result<()> {
+        let table_txs = Txs::open_table(&self.transaction)?;
+        table_txs.check_tx_not_exists(id)
     }
 
-    pub fn get_last_block_height(transaction: &ReadTransaction) -> anyhow::Result<BlockHeight> {
-        let table_lbh = last_block_height::open_table(&transaction)?;
-        DbTable::get_last_block_height(&table_lbh)
+    pub fn check_all_txs_not_exist(&self, txs: &Vec<Tx>) -> anyhow::Result<()> {
+        let table_txs = Txs::open_table(&self.transaction)?;
+        table_txs.check_all_txs_not_exist(txs)
     }
 
-    pub fn get_block(
-        transaction: &ReadTransaction,
-        block_height: BlockHeight,
-    ) -> anyhow::Result<Option<BlockInDb>> {
-        let table_blocks = blocks::open_table(&transaction)?;
-        DbTable::get_block(&table_blocks, block_height)
+    pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
+        let table_lbh = LastBlockHeight::open_table(&self.transaction)?;
+        table_lbh.get_last_block_height()
+    }
+
+    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<Option<BlockInDb>> {
+        let table_blocks = Blocks::open_table(&self.transaction)?;
+        table_blocks.get_block(block_height)
+    }
+}
+
+impl<'db> DbRead<'db> {
+    pub fn get_block_hash(&self, block_height: BlockHeight) -> anyhow::Result<BlockHash> {
+        let hash = if block_height == GENESIS_BLOCK_HEIGHT {
+            GENESIS_BLOCK_HASH
+        } else {
+            self.get_block(block_height)?
+                .ok_or_else(|| anyhow!(" block {} not found", block_height))?
+                .hash
+        };
+        Ok(hash)
     }
 }
