@@ -25,9 +25,10 @@ pub struct BlockChain {
 }
 
 impl BlockChain {
-    pub async fn create(channels: BlockChainMsgChannels) -> anyhow::Result<Self> {
+    pub async fn create(channels: BlockChainMsgChannels, db_path: String) -> anyhow::Result<Self> {
+        let db_path = if db_path.is_empty() { BLOCKCHAIN_DB_PATH.to_string() } else { db_path };
         Ok(Self {
-            db: AsyncBlockChainDb::create(BLOCKCHAIN_DB_PATH).await?,
+            db: AsyncBlockChainDb::create(db_path).await?,
             tx_pool: TxPool::new(TX_POOL_CAPACITY),
             block_msg_pool: BlockMsgPool::new(BLOCK_POOL_CAPACITY),
             msg_receiver: channels.msg_receiver,
