@@ -1,13 +1,14 @@
 #[macro_export]
 macro_rules! define_redb_table {
-    ($vis:vis ($table:ident, $table_w:ident) = ($key:ty, $value:ty, $table_name:literal)) => {
+    ($vis:vis ($table:ident, $table_r:ident, $table_w:ident) = ($key:ty, $value:ty, $table_name:literal)) => {
         $vis struct $table<TABLE> {
             pub table: TABLE,
         }
 
+        $vis type $table_r<'txn> = $table<redb::ReadOnlyTable<'txn, $key, $value>>;
         $vis type $table_w<'db, 'txn> = $table<redb::Table<'db, 'txn, $key, $value>>;
 
-        impl<'txn> $table<redb::ReadOnlyTable<'txn, $key, $value>> {
+        impl<'txn> $table_r<'txn> {
             #[inline]
             pub fn open_table(txn: &'txn redb::ReadTransaction) -> std::result::Result<Self, redb::TableError> {
                 let table = txn.open_table(redb::TableDefinition::new($table_name))?;

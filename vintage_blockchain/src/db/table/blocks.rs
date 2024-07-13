@@ -4,7 +4,7 @@ use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, TxId};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize};
 
 define_redb_table! {
-    pub(crate) (Blocks, BlocksW) = (BlockHeight, Vec<u8>, "blocks")
+    pub(crate) (Blocks, BlocksR, BlocksW) = (BlockHeight, Vec<u8>, "blocks")
 }
 
 #[derive(Serialize, Deserialize)]

@@ -1,10 +1,10 @@
-use crate::db::LastBlockHeight;
+use crate::db::Blocks;
 use crate::db::Txs;
-use crate::db::{BlockInDb, Blocks};
+use crate::db::{BlocksR, LastBlockHeight, LastBlockHeightR, TxsR};
 use crate::genesis::{GENESIS_BLOCK_HASH, GENESIS_BLOCK_HEIGHT};
 use anyhow::anyhow;
-use redb::ReadTransaction;
-use vintage_msg::{BlockHash, BlockHeight, Tx, TxId};
+use redb::{ReadTransaction, TableError};
+use vintage_msg::{BlockHash, BlockHeight};
 
 pub(crate) struct DbRead<'db> {
     transaction: ReadTransaction<'db>,
@@ -15,24 +15,16 @@ impl<'db> DbRead<'db> {
         Self { transaction }
     }
 
-    pub fn check_tx_not_exists(&self, id: TxId) -> anyhow::Result<()> {
-        let table_txs = Txs::open_table(&self.transaction)?;
-        table_txs.check_tx_not_exists(id)
+    pub fn open_last_block_height(&self) -> Result<LastBlockHeightR, TableError> {
+        LastBlockHeight::open_table(&self.transaction)
     }
 
-    pub fn check_all_txs_not_exist(&self, txs: &Vec<Tx>) -> anyhow::Result<()> {
-        let table_txs = Txs::open_table(&self.transaction)?;
-        table_txs.check_all_txs_not_exist(txs)
+    pub fn open_blocks(&self) -> Result<BlocksR, TableError> {
+        Blocks::open_table(&self.transaction)
     }
 
-    pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
-        let table_lbh = LastBlockHeight::open_table(&self.transaction)?;
-        table_lbh.get_last_block_height()
-    }
-
-    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<Option<BlockInDb>> {
-        let table_blocks = Blocks::open_table(&self.transaction)?;
-        table_blocks.get_block(block_height)
+    pub fn open_txs(&self) -> Result<TxsR, TableError> {
+        Txs::open_table(&self.transaction)
     }
 }
 
@@ -41,7 +33,8 @@ impl<'db> DbRead<'db> {
         let hash = if block_height == GENESIS_BLOCK_HEIGHT {
             GENESIS_BLOCK_HASH
         } else {
-            self.get_block(block_height)?
+            self.open_blocks()?
+                .get_block(block_height)?
                 .ok_or_else(|| anyhow!(" block {} not found", block_height))?
                 .hash
         };

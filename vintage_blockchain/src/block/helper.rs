@@ -1,27 +1,11 @@
+use crate::db::Db;
+use crate::tx::TxPool;
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
-use vintage_msg::{Block, BlockBody, BlockHash, BlockHeight};
-use vintage_utils::{Pool, Timestamp};
+use vintage_msg::{Block, BlockBody, BlockHash, BlockHeader, BlockHeight, Tx};
+use vintage_utils::{current_timestamp, Timestamp};
 
-pub(crate) type BlockPool = Pool<BlockHeight, Block>;
-
-pub(super) fn check_block_height(
-    block_height: BlockHeight,
-    last_block_height: BlockHeight,
-) -> anyhow::Result<bool> {
-    let new_block_height = last_block_height + 1;
-    if block_height < new_block_height {
-        Err(anyhow!(
-            "the block height {}, less than {}",
-            block_height,
-            new_block_height,
-        ))
-    } else {
-        Ok(block_height == new_block_height)
-    }
-}
-
-pub(super) fn calc_block_hash(
+fn calc_block_hash(
     block_height: BlockHeight,
     timestamp: Timestamp,
     block_body: &BlockBody,
@@ -49,5 +33,37 @@ pub(super) fn check_block_hash(block: &Block, prev_hash: &BlockHash) -> anyhow::
         Ok(())
     } else {
         Err(anyhow!("block hash is invalid"))
+    }
+}
+
+pub(super) fn new_block(block_height: BlockHeight, txs: Vec<Tx>, prev_hash: &BlockHash) -> Block {
+    let timestamp = current_timestamp();
+    let block_body = BlockBody { txs };
+    let block_hash = calc_block_hash(block_height, timestamp, &block_body, &prev_hash);
+    Block {
+        header: BlockHeader {
+            height: block_height,
+            hash: block_hash,
+            timestamp,
+        },
+        body: block_body,
+    }
+}
+
+pub(super) fn persist_block(db: &Db, block: &Block) -> anyhow::Result<()> {
+    let db_write = db.begin_write()?;
+    db_write.write_block(&block)?;
+    db_write.commit()?;
+    log::info!(
+        "block {} persisted, tx count: {}",
+        block.header.height,
+        block.body.txs.len()
+    );
+    Ok(())
+}
+
+pub(super) fn remove_txs_of_persisted_block(tx_pool: &mut TxPool, block: &Block) {
+    for tx in &block.body.txs {
+        tx_pool.remove(&tx.id);
     }
 }

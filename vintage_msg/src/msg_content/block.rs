@@ -6,19 +6,19 @@ pub type BlockHeight = u64;
 pub type BlockTimestamp = u64;
 pub type BlockHash = [u8; 32]; // 256 bits
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
     pub height: BlockHeight,
     pub hash: BlockHash,
     pub timestamp: BlockTimestamp,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockBody {
     pub txs: Vec<Tx>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub header: BlockHeader,
     pub body: BlockBody,
@@ -32,7 +32,7 @@ impl WithId for Block {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockProduction {
     pub block_height: BlockHeight,
 }

@@ -1,7 +1,7 @@
 use crate::db::LastBlockHeight;
 use crate::db::Txs;
 use crate::db::{BlockInDb, Blocks};
-use redb::WriteTransaction;
+use redb::{CommitError, WriteTransaction};
 use vintage_msg::{Block, TxId};
 
 pub(crate) struct DbWrite<'db> {
@@ -11,6 +11,10 @@ pub(crate) struct DbWrite<'db> {
 impl<'db> DbWrite<'db> {
     pub fn new(transaction: WriteTransaction<'db>) -> Self {
         Self { transaction }
+    }
+
+    pub fn commit(self) -> Result<(), CommitError> {
+        self.transaction.commit()
     }
 
     // complete all operations within a single transaction
