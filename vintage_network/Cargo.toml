@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.86" }
+# vintage
 vintage_msg = { path = "../vintage_msg" }

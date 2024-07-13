@@ -13,14 +13,26 @@ pub(crate) fn raw_tx_handler(
     tx: Tx,
 ) -> anyhow::Result<()> {
     check_tx_not_exist(db, tx_pool, &tx)?;
+    log::info!(
+        "tx from worker: {:032X}, content len: {}",
+        tx.id,
+        tx.content.len()
+    );
     tx_pool.insert(tx.clone());
+
     network_msg_sender.send_msg(NetworkMsg::BroadcastTx(tx));
     Ok(())
 }
 
 pub(crate) fn tx_handler(db: &Db, tx_pool: &mut TxPool, tx: Tx) -> anyhow::Result<()> {
     check_tx_not_exist(db, tx_pool, &tx)?;
+    log::info!(
+        "tx from network: {:032X}, content len: {}",
+        tx.id,
+        tx.content.len()
+    );
     tx_pool.insert(tx);
+
     Ok(())
 }
 

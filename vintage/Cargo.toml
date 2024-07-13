@@ -7,10 +7,14 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.86" }
-env_logger = { version = "0.10.2" }
+env_logger = { version = "0.11.3" }
+log = { version = "0.4.21" }
+rand = { version = "0.8.5" }
 tokio = { version = "1.38.0" }
+# vintage
 vintage_blockchain = { path = "../vintage_blockchain" }
 vintage_msg = { path = "../vintage_msg" }
 vintage_consensus = { path = "../vintage_consensus" }
 vintage_network = { path = "../vintage_network" }
 vintage_worker = { path = "../vintage_worker" }
+vintage_utils = { path = "../vintage_utils" }

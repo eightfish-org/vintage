@@ -10,7 +10,7 @@ impl<TMsg> SendMsg for mpsc::Sender<TMsg> {
 
     fn send_msg(&self, msg: Self::Msg) {
         if let Err(err) = self.try_send(msg) {
-            log::error!("mps::Sender try_send err: {}", err);
+            log::trace!("mpsc::Sender try_send err: {}", err);
         }
     }
 }

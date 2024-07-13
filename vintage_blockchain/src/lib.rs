@@ -6,7 +6,6 @@ mod tx;
 use crate::block::{block_msg_handler, BlockMsg, BlockMsgPool};
 use crate::db::Db;
 use crate::tx::{raw_tx_handler, tx_handler, TxPool};
-use redb::Database;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use vintage_msg::{BlockChainMsg, BlockChainMsgChannels, NetworkMsg, WorkerMsg};
@@ -16,21 +15,21 @@ const TX_POOL_CAPACITY: usize = 1000;
 const BLOCK_POOL_CAPACITY: usize = 100;
 const MAX_TXS_PER_BLOCK: usize = 1000;
 
-#[allow(dead_code)]
 pub struct BlockChain {
     db: Db,
     tx_pool: TxPool,
     block_msg_pool: BlockMsgPool,
     msg_receiver: mpsc::Receiver<BlockChainMsg>,
+    #[allow(dead_code)]
     worker_msg_sender: mpsc::Sender<WorkerMsg>,
     network_msg_sender: mpsc::Sender<NetworkMsg>,
 }
 
 impl BlockChain {
     pub fn create(channels: BlockChainMsgChannels) -> anyhow::Result<Self> {
-        let database = Database::create(DB_PATH)?;
+        let db = Db::create(DB_PATH)?;
         Ok(Self {
-            db: Db::new(database),
+            db,
             tx_pool: TxPool::new(TX_POOL_CAPACITY),
             block_msg_pool: BlockMsgPool::new(BLOCK_POOL_CAPACITY),
             msg_receiver: channels.msg_receiver,
