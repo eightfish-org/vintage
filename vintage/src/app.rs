@@ -5,6 +5,7 @@ use vintage_msg::{
     BlockChainMsgChannels, ConsensusMsgChannels, NetworkMsgChannels, WorkerMsgChannels,
 };
 use vintage_network::Network;
+use vintage_state::StateMgr;
 use vintage_worker::Worker;
 
 #[allow(dead_code)]
@@ -24,6 +25,8 @@ impl Vintage {
     ) -> anyhow::Result<Self> {
         let worker = Worker::create(worker_chn).await?;
         let blockchain = BlockChain::create(blockchain_chn).await?;
+        #[allow(unused_variables)]
+        let state_mgr = StateMgr::create().await?;
         let consensus = Consensus::create(consensus_chn).await?;
         let network = Network::create(network_chn).await?;
 

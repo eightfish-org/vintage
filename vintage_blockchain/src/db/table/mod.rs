@@ -1,7 +1,7 @@
-mod blocks;
+mod block;
 mod last_block_height;
-mod txs;
+mod tx;
 
-pub(crate) use self::blocks::*;
+pub(crate) use self::block::*;
 pub(crate) use self::last_block_height::*;
-pub(crate) use self::txs::*;
+pub(crate) use self::tx::*;

@@ -4,10 +4,10 @@ use vintage_msg::{TxContent, TxId};
 use vintage_utils::define_redb_table;
 
 define_redb_table! {
-    pub(crate) (Txs, TxsR, TxsW) = (TxId, TxContent, "txs")
+    pub(crate) (TxTable, TxTableR, TxTableW) = (TxId, TxContent, "tx")
 }
 
-impl<TABLE> Txs<TABLE>
+impl<TABLE> TxTable<TABLE>
 where
     TABLE: ReadableTable<TxId, TxContent>,
 {

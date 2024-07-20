@@ -1,6 +1,7 @@
+use crate::msg_content::Hashed;
 use crate::Tx;
 use serde::{Deserialize, Serialize};
-use vintage_utils::{Hashed, WithId};
+use vintage_utils::WithId;
 
 pub type BlockHeight = u64;
 pub type BlockTimestamp = u64;

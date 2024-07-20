@@ -685,6 +685,7 @@ dependencies = [
  "vintage_consensus",
  "vintage_msg",
  "vintage_network",
+ "vintage_state",
  "vintage_utils",
  "vintage_worker",
 ]
@@ -720,7 +721,6 @@ version = "0.1.0"
 dependencies = [
  "log",
  "serde",
- "sha2",
  "tokio",
  "uuid",
  "vintage_utils",
@@ -738,7 +738,10 @@ dependencies = [
 name = "vintage_state"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "redb",
+ "sha2",
+ "tokio",
  "vintage_msg",
  "vintage_utils",
 ]

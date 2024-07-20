@@ -4,10 +4,10 @@ use vintage_msg::BlockHeight;
 use vintage_utils::define_redb_table;
 
 define_redb_table! {
-    pub(crate) (LastBlockHeight, LastBlockHeightR, LastBlockHeightW) = ((), BlockHeight, "last_block_height")
+    pub(crate) (LastBlockHeightTable, LastBlockHeightTableR, LastBlockHeightTableW) = ((), BlockHeight, "last_block_height")
 }
 
-impl<TABLE> LastBlockHeight<TABLE>
+impl<TABLE> LastBlockHeightTable<TABLE>
 where
     TABLE: ReadableTable<(), BlockHeight>,
 {

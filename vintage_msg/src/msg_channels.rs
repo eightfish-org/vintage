@@ -7,6 +7,7 @@ pub struct WorkerMsgChannels {
     // sender
     pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
 }
+
 pub struct BlockChainMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<BlockChainMsg>,

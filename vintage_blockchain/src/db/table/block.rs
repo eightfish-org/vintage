@@ -5,7 +5,7 @@ use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, TxId};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize};
 
 define_redb_table! {
-    pub(crate) (Blocks, BlocksR, BlocksW) = (BlockHeight, Vec<u8>, "blocks")
+    pub(crate) (BlockTable, BlockTableR, BlockTableW) = (BlockHeight, Vec<u8>, "block")
 }
 
 #[derive(Serialize, Deserialize)]
@@ -15,14 +15,11 @@ pub(crate) struct BlockInDb {
     pub tx_ids: Vec<TxId>,
 }
 
-impl<TABLE> Blocks<TABLE>
+impl<TABLE> BlockTable<TABLE>
 where
     TABLE: ReadableTable<BlockHeight, Vec<u8>>,
 {
-    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<BlockInDb>
-    where
-        TABLE: ReadableTable<BlockHeight, Vec<u8>>,
-    {
+    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<BlockInDb> {
         let option = self.get(block_height)?;
         match option {
             Some(access) => {
@@ -34,7 +31,7 @@ where
     }
 }
 
-impl<'db, 'txn> BlocksW<'db, 'txn> {
+impl<'db, 'txn> BlockTableW<'db, 'txn> {
     pub fn insert_block(
         &mut self,
         block_height: BlockHeight,

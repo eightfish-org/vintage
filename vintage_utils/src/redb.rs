@@ -1,11 +1,10 @@
 use redb::{RedbKey, RedbValue, TypeName};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp::Ordering;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Bytes<const N: usize>(pub [u8; N]);
+#[derive(Debug)]
+pub struct RedbBytes<const N: usize>;
 
-impl<const N: usize> RedbValue for Bytes<N> {
+impl<const N: usize> RedbValue for RedbBytes<N> {
     type SelfType<'a> = &'a [u8; N] where Self: 'a;
     type AsBytes<'a> = &'a [u8; N] where Self: 'a;
 
@@ -29,35 +28,17 @@ impl<const N: usize> RedbValue for Bytes<N> {
     }
 
     fn type_name() -> TypeName {
-        TypeName::new(&format!("Bytes<{N}>"))
+        TypeName::new(&format!("RedbBytes<{N}>"))
     }
 }
 
-impl<const N: usize> RedbKey for Bytes<N> {
+impl<const N: usize> RedbKey for RedbBytes<N> {
     fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
         data1.cmp(data2)
     }
 }
 
-pub type Hashed = Bytes<32>; // 256 bits
-
-impl Serialize for Hashed {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        Serialize::serialize(&self.0, serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Hashed {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(Self(Deserialize::deserialize(deserializer)?))
-    }
-}
+pub type RedbBytes32 = RedbBytes<32>; // 256 bits
 
 #[macro_export]
 macro_rules! define_redb_table {
@@ -79,7 +60,7 @@ macro_rules! define_redb_table {
 
         impl<'db, 'txn> $table_w<'db, 'txn> {
             #[inline]
-            pub fn open_writable_table(txn: &'txn redb::WriteTransaction<'db>) -> std::result::Result<Self, redb::TableError> {
+            pub fn open_table(txn: &'txn redb::WriteTransaction<'db>) -> std::result::Result<Self, redb::TableError> {
                 let table = txn.open_table(redb::TableDefinition::new($table_name))?;
                 Ok(Self { table })
             }

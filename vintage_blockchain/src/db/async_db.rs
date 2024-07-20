@@ -6,10 +6,11 @@ use tokio::task::spawn_blocking;
 use vintage_msg::{Block, BlockHash, BlockHeight, TxId};
 
 #[derive(Clone)]
-pub struct AsyncBlockChainDb {
+pub(crate) struct AsyncBlockChainDb {
     pub db: Arc<Mutex<BlockChainDb>>,
 }
 
+// create
 impl AsyncBlockChainDb {
     pub async fn create(path: impl AsRef<Path> + Send + 'static) -> anyhow::Result<Self> {
         let db = spawn_blocking(|| BlockChainDb::create(path)).await??;
@@ -19,6 +20,7 @@ impl AsyncBlockChainDb {
     }
 }
 
+// read
 impl AsyncBlockChainDb {
     pub async fn check_tx_not_exists(&self, id: TxId) -> anyhow::Result<()> {
         let db = self.db.clone();
@@ -43,7 +45,10 @@ impl AsyncBlockChainDb {
             spawn_blocking(move || db.lock().unwrap().get_block_hash(block_height)).await?
         }
     }
+}
 
+// write
+impl AsyncBlockChainDb {
     pub async fn write_block(&self, block: Block) -> anyhow::Result<()> {
         let db = self.db.clone();
         spawn_blocking(move || db.lock().unwrap().write_block(&block)).await?

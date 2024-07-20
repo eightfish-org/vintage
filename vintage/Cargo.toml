@@ -12,9 +12,10 @@ log = { version = "0.4.21" }
 rand = { version = "0.8.5" }
 tokio = { version = "1.38.0" }
 # vintage
+vintage_worker = { path = "../vintage_worker" }
 vintage_blockchain = { path = "../vintage_blockchain" }
-vintage_msg = { path = "../vintage_msg" }
+vintage_state = { path = "../vintage_state" }
 vintage_consensus = { path = "../vintage_consensus" }
 vintage_network = { path = "../vintage_network" }
-vintage_worker = { path = "../vintage_worker" }
+vintage_msg = { path = "../vintage_msg" }
 vintage_utils = { path = "../vintage_utils" }
