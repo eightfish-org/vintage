@@ -28,7 +28,7 @@ pub(super) async fn send_block_to_blockchain(sender: mpsc::Sender<BlockChainMsg>
 
         let millis = thread_rng().gen_range(1000..=2000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::BlockProduction(BlockProduction {
+        sender.send_msg(BlockChainMsg::ProduceBlock(BlockProduction {
             block_height: if ordered {
                 height_block
             } else {
@@ -38,7 +38,7 @@ pub(super) async fn send_block_to_blockchain(sender: mpsc::Sender<BlockChainMsg>
 
         let millis = thread_rng().gen_range(1000..=2000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::BlockProduction(BlockProduction {
+        sender.send_msg(BlockChainMsg::ProduceBlock(BlockProduction {
             block_height: if ordered {
                 height_block + 1
             } else {

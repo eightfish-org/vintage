@@ -1,0 +1,10 @@
+[package]
+name = "vintage_state"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+redb = { version = "1.5.1" }
+# vintage
+vintage_msg = { path = "../vintage_msg" }
+vintage_utils = { path = "../vintage_utils" }

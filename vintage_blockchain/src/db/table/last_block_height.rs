@@ -1,4 +1,4 @@
-use crate::genesis::GENESIS_BLOCK_HEIGHT;
+use crate::block::genesis::GENESIS_BLOCK_HEIGHT;
 use redb::{ReadableTable, StorageError};
 use vintage_msg::BlockHeight;
 use vintage_utils::define_redb_table;

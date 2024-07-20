@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
         network_msg_sender,
     );
 
-    let app = Vintage::create(worker_chn, blockchain_chn, consensus_chn, network_chn)?;
+    let app = Vintage::create(worker_chn, blockchain_chn, consensus_chn, network_chn).await?;
     app.start_service().await?;
 
     Ok(())

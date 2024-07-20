@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use redb::ReadableTable;
 use serde::{Deserialize, Serialize};
 use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, TxId};
@@ -18,7 +19,7 @@ impl<TABLE> Blocks<TABLE>
 where
     TABLE: ReadableTable<BlockHeight, Vec<u8>>,
 {
-    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<Option<BlockInDb>>
+    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<BlockInDb>
     where
         TABLE: ReadableTable<BlockHeight, Vec<u8>>,
     {
@@ -26,9 +27,9 @@ where
         match option {
             Some(access) => {
                 let (block, _bytes_read) = BlockInDb::bincode_deserialize(&access.value())?;
-                Ok(Some(block))
+                Ok(block)
             }
-            None => Ok(None),
+            None => Err(anyhow!(" block {} not found", block_height)),
         }
     }
 }

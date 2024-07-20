@@ -1,22 +1,21 @@
 mod block;
 mod db;
-mod genesis;
 mod tx;
 
 use crate::block::{block_msg_handler, BlockMsg, BlockMsgPool};
-use crate::db::Db;
+use crate::db::AsyncBlockChainDb;
 use crate::tx::{raw_tx_handler, tx_handler, TxPool};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use vintage_msg::{BlockChainMsg, BlockChainMsgChannels, NetworkMsg, WorkerMsg};
 
-const DB_PATH: &str = "vintage.db";
+const BLOCKCHAIN_DB_PATH: &str = "blockchain.db";
 const TX_POOL_CAPACITY: usize = 1000;
 const BLOCK_POOL_CAPACITY: usize = 100;
 const MAX_TXS_PER_BLOCK: usize = 1000;
 
 pub struct BlockChain {
-    db: Db,
+    db: AsyncBlockChainDb,
     tx_pool: TxPool,
     block_msg_pool: BlockMsgPool,
     msg_receiver: mpsc::Receiver<BlockChainMsg>,
@@ -26,10 +25,9 @@ pub struct BlockChain {
 }
 
 impl BlockChain {
-    pub fn create(channels: BlockChainMsgChannels) -> anyhow::Result<Self> {
-        let db = Db::create(DB_PATH)?;
+    pub async fn create(channels: BlockChainMsgChannels) -> anyhow::Result<Self> {
         Ok(Self {
-            db,
+            db: AsyncBlockChainDb::create(BLOCKCHAIN_DB_PATH).await?,
             tx_pool: TxPool::new(TX_POOL_CAPACITY),
             block_msg_pool: BlockMsgPool::new(BLOCK_POOL_CAPACITY),
             msg_receiver: channels.msg_receiver,
@@ -52,34 +50,40 @@ impl BlockChain {
                             &mut self.tx_pool,
                             &self.network_msg_sender,
                             tx,
-                        ) {
+                        )
+                        .await
+                        {
                             log::error!("Failed to handle raw tx: {}", err);
                         }
                     }
                     BlockChainMsg::Tx(tx) => {
-                        if let Err(err) = tx_handler(&self.db, &mut self.tx_pool, tx) {
+                        if let Err(err) = tx_handler(&self.db, &mut self.tx_pool, tx).await {
                             log::error!("Failed to handle tx: {}", err);
                         }
                     }
-                    BlockChainMsg::Block(block) => {
+                    BlockChainMsg::ImportBlock(block) => {
                         if let Err(err) = block_msg_handler(
                             &self.db,
                             &mut self.tx_pool,
                             &mut self.block_msg_pool,
                             &self.network_msg_sender,
-                            BlockMsg::Block(block),
-                        ) {
+                            BlockMsg::ImportBlock(block),
+                        )
+                        .await
+                        {
                             log::error!("Failed to handle block: {}", err);
                         }
                     }
-                    BlockChainMsg::BlockProduction(block_production) => {
+                    BlockChainMsg::ProduceBlock(block_production) => {
                         if let Err(err) = block_msg_handler(
                             &self.db,
                             &mut self.tx_pool,
                             &mut self.block_msg_pool,
                             &self.network_msg_sender,
-                            BlockMsg::BlockProduction(block_production),
-                        ) {
+                            BlockMsg::ProduceBlock(block_production),
+                        )
+                        .await
+                        {
                             log::error!("Failed to handle block production: {}", err);
                         }
                     }

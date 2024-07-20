@@ -720,6 +720,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "serde",
+ "sha2",
  "tokio",
  "uuid",
  "vintage_utils",
@@ -734,6 +735,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vintage_state"
+version = "0.1.0"
+dependencies = [
+ "redb",
+ "vintage_msg",
+ "vintage_utils",
+]
+
+[[package]]
 name = "vintage_utils"
 version = "0.1.0"
 dependencies = [
@@ -744,6 +754,10 @@ dependencies = [
  "time",
  "tokio",
 ]
+
+[[package]]
+name = "vintage_web"
+version = "0.1.0"
 
 [[package]]
 name = "vintage_worker"

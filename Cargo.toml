@@ -5,7 +5,9 @@ members = [
     "vintage_consensus",
     "vintage_msg",
     "vintage_network",
+    "vintage_state",
     "vintage_utils",
+    "vintage_web",
     "vintage_worker",
 ]
 resolver = "2"

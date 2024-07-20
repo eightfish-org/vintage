@@ -3,8 +3,8 @@ use vintage_utils::{Pool, WithId};
 
 #[derive(Clone)]
 pub(crate) enum BlockMsg {
-    Block(Block),
-    BlockProduction(BlockProduction),
+    ImportBlock(Block),
+    ProduceBlock(BlockProduction),
 }
 
 impl WithId for BlockMsg {
@@ -12,8 +12,8 @@ impl WithId for BlockMsg {
 
     fn id(&self) -> &Self::Id {
         match self {
-            BlockMsg::Block(block) => &block.header.height,
-            BlockMsg::BlockProduction(block_production) => &block_production.block_height,
+            BlockMsg::ImportBlock(block) => &block.header.height,
+            BlockMsg::ProduceBlock(block_production) => &block_production.block_height,
         }
     }
 }

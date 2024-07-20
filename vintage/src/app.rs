@@ -16,16 +16,16 @@ pub struct Vintage {
 }
 
 impl Vintage {
-    pub fn create(
+    pub async fn create(
         worker_chn: WorkerMsgChannels,
         blockchain_chn: BlockChainMsgChannels,
         consensus_chn: ConsensusMsgChannels,
         network_chn: NetworkMsgChannels,
     ) -> anyhow::Result<Self> {
-        let worker = Worker::create(worker_chn)?;
-        let blockchain = BlockChain::create(blockchain_chn)?;
-        let consensus = Consensus::create(consensus_chn)?;
-        let network = Network::create(network_chn)?;
+        let worker = Worker::create(worker_chn).await?;
+        let blockchain = BlockChain::create(blockchain_chn).await?;
+        let consensus = Consensus::create(consensus_chn).await?;
+        let network = Network::create(network_chn).await?;
 
         Ok(Self {
             worker,

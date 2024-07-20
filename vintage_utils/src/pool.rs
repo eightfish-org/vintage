@@ -52,4 +52,10 @@ where
     {
         self.map.remove(id)
     }
+
+    pub fn remove_by_ids(&mut self, ids: &[VALUE::Id]) {
+        for id in ids {
+            self.map.remove(id);
+        }
+    }
 }

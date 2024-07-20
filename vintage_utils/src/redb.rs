@@ -1,3 +1,64 @@
+use redb::{RedbKey, RedbValue, TypeName};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::cmp::Ordering;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Bytes<const N: usize>(pub [u8; N]);
+
+impl<const N: usize> RedbValue for Bytes<N> {
+    type SelfType<'a> = &'a [u8; N] where Self: 'a;
+    type AsBytes<'a> = &'a [u8; N] where Self: 'a;
+
+    fn fixed_width() -> Option<usize> {
+        Some(N)
+    }
+
+    fn from_bytes<'a>(data: &'a [u8]) -> Self::SelfType<'a>
+    where
+        Self: 'a,
+    {
+        data.try_into().unwrap()
+    }
+
+    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
+    where
+        Self: 'a,
+        Self: 'b,
+    {
+        value
+    }
+
+    fn type_name() -> TypeName {
+        TypeName::new(&format!("Bytes<{N}>"))
+    }
+}
+
+impl<const N: usize> RedbKey for Bytes<N> {
+    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
+        data1.cmp(data2)
+    }
+}
+
+pub type Hashed = Bytes<32>; // 256 bits
+
+impl Serialize for Hashed {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(&self.0, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Hashed {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self(Deserialize::deserialize(deserializer)?))
+    }
+}
+
 #[macro_export]
 macro_rules! define_redb_table {
     ($vis:vis ($table:ident, $table_r:ident, $table_w:ident) = ($key:ty, $value:ty, $table_name:literal)) => {

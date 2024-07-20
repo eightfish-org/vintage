@@ -18,4 +18,11 @@ where
             Ok(())
         }
     }
+
+    pub fn check_txs_not_exist(&self, ids: &[TxId]) -> anyhow::Result<()> {
+        for id in ids {
+            self.check_tx_not_exists(id.clone())?;
+        }
+        Ok(())
+    }
 }

@@ -1,9 +1,8 @@
-use crate::db::Db;
-use crate::tx::TxPool;
+use crate::db::AsyncBlockChainDb;
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
 use vintage_msg::{Block, BlockBody, BlockHash, BlockHeader, BlockHeight, Tx};
-use vintage_utils::{current_timestamp, Timestamp};
+use vintage_utils::{current_timestamp, Bytes, Timestamp};
 
 fn calc_block_hash(
     block_height: BlockHeight,
@@ -18,8 +17,8 @@ fn calc_block_hash(
         hasher.update(tx.id.to_be_bytes());
         hasher.update(&tx.content);
     }
-    hasher.update(prev_hash);
-    hasher.finalize().into()
+    hasher.update(prev_hash.0);
+    Bytes(hasher.finalize().into())
 }
 
 pub(super) fn check_block_hash(block: &Block, prev_hash: &BlockHash) -> anyhow::Result<()> {
@@ -50,20 +49,10 @@ pub(super) fn new_block(block_height: BlockHeight, txs: Vec<Tx>, prev_hash: &Blo
     }
 }
 
-pub(super) fn persist_block(db: &Db, block: &Block) -> anyhow::Result<()> {
-    let db_write = db.begin_write()?;
-    db_write.write_block(&block)?;
-    db_write.commit()?;
-    log::info!(
-        "block {} persisted, tx count: {}",
-        block.header.height,
-        block.body.txs.len()
-    );
+pub(super) async fn persist_block(db: &AsyncBlockChainDb, block: Block) -> anyhow::Result<()> {
+    let block_height = block.header.height;
+    let tx_count = block.body.txs.len();
+    db.write_block(block).await?;
+    log::info!("block {} persisted, tx count: {}", block_height, tx_count);
     Ok(())
-}
-
-pub(super) fn remove_txs_of_persisted_block(tx_pool: &mut TxPool, block: &Block) {
-    for tx in &block.body.txs {
-        tx_pool.remove(&tx.id);
-    }
 }

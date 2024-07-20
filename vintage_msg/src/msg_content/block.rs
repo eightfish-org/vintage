@@ -1,10 +1,10 @@
 use crate::Tx;
 use serde::{Deserialize, Serialize};
-use vintage_utils::WithId;
+use vintage_utils::{Hashed, WithId};
 
 pub type BlockHeight = u64;
 pub type BlockTimestamp = u64;
-pub type BlockHash = [u8; 32]; // 256 bits
+pub type BlockHash = Hashed;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
