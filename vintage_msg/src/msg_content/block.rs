@@ -14,12 +14,12 @@ pub struct BlockHeader {
     pub timestamp: BlockTimestamp,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BlockBody {
     pub txs: Vec<Tx>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Block {
     pub header: BlockHeader,
     pub body: BlockBody,

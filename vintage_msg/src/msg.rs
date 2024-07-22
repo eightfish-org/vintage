@@ -1,5 +1,5 @@
 use crate::{Block, BlockProduction, Tx, TxId};
-
+use serde::{Deserialize, Serialize};
 pub enum WorkerMsg {
     TxPersisted(Tx),
     TxDuplicated(TxId),
@@ -14,6 +14,7 @@ pub enum BlockChainMsg {
 
 pub enum ConsensusMsg {}
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NetworkMsg {
     BroadcastTx(Tx),
     BroadcastBlock(Block),

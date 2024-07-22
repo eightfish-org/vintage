@@ -1,0 +1,7 @@
+listen_addr: 127.0.0.1:8000
+peers:
+  - address: 127.0.0.1:8001
+    name: Node2
+  - address: 127.0.0.1:8002
+    name: Node3
+db_path: blockchain1.db
