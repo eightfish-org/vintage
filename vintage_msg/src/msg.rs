@@ -1,13 +1,16 @@
-use crate::{Block, BlockProduction, Tx, TxId};
+use crate::{Block, BlockProduction, Act, ActId};
 use serde::{Deserialize, Serialize};
+
 pub enum WorkerMsg {
-    TxPersisted(Tx),
-    TxDuplicated(TxId),
+    ActPersisted(Act),
+    ActDuplicated(ActId),
 }
 
 pub enum BlockChainMsg {
-    RawTx(Tx), // tx from wasm worker
-    Tx(Tx),    // tx from network
+    // from wasm worker
+    RawAct(Act),
+    // from network
+    Act(Act),
     ImportBlock(Block),
     ProduceBlock(BlockProduction),
 }
@@ -16,6 +19,6 @@ pub enum ConsensusMsg {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NetworkMsg {
-    BroadcastTx(Tx),
+    BroadcastAct(Act),
     BroadcastBlock(Block),
 }

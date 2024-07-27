@@ -1,5 +1,5 @@
 use crate::msg_content::Hashed;
-use crate::Tx;
+use crate::Act;
 use serde::{Deserialize, Serialize};
 use vintage_utils::WithId;
 
@@ -16,7 +16,7 @@ pub struct BlockHeader {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BlockBody {
-    pub txs: Vec<Tx>,
+    pub acts: Vec<Act>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

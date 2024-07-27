@@ -1,4 +1,5 @@
 **/target
 blockchain.db
+state.db
 # Rust Rover
 .idea

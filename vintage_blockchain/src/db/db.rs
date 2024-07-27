@@ -1,10 +1,10 @@
 use crate::db::{
-    BlockInDb, BlockTableR, BlockTableW, LastBlockHeightTableR, LastBlockHeightTableW, TxTableR,
-    TxTableW,
+    BlockInDb, BlockTableR, BlockTableW, LastBlockHeightTableR, LastBlockHeightTableW, ActTableR,
+    ActTableW,
 };
 use redb::Database;
 use std::path::Path;
-use vintage_msg::{Block, BlockHash, BlockHeight, TxId};
+use vintage_msg::{Block, BlockHash, BlockHeight, ActId};
 
 pub(crate) struct BlockChainDb {
     database: Database,
@@ -22,7 +22,7 @@ impl BlockChainDb {
 
     fn create_tables(&self) -> anyhow::Result<()> {
         let db_write = self.database.begin_write()?;
-        TxTableW::open_table(&db_write)?;
+        ActTableW::open_table(&db_write)?;
         LastBlockHeightTableW::open_table(&db_write)?;
         BlockTableW::open_table(&db_write)?;
         db_write.commit()?;
@@ -32,16 +32,16 @@ impl BlockChainDb {
 
 // read
 impl BlockChainDb {
-    pub fn check_tx_not_exists(&self, id: TxId) -> anyhow::Result<()> {
+    pub fn check_act_not_exists(&self, id: ActId) -> anyhow::Result<()> {
         let db_read = self.database.begin_read()?;
-        let table = TxTableR::open_table(&db_read)?;
-        table.check_tx_not_exists(id)
+        let table = ActTableR::open_table(&db_read)?;
+        table.check_act_not_exists(id)
     }
 
-    pub fn check_txs_not_exist(&self, ids: &[TxId]) -> anyhow::Result<()> {
+    pub fn check_acts_not_exist(&self, ids: &[ActId]) -> anyhow::Result<()> {
         let db_read = self.database.begin_read()?;
-        let table = TxTableR::open_table(&db_read)?;
-        table.check_txs_not_exist(ids)
+        let table = ActTableR::open_table(&db_read)?;
+        table.check_acts_not_exist(ids)
     }
 
     pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
@@ -69,13 +69,13 @@ impl BlockChainDb {
             table_lbh.insert((), block.header.height)?;
         }
 
-        let mut tx_ids = Vec::<TxId>::new();
-        // insert txs
+        let mut act_ids = Vec::<ActId>::new();
+        // insert acts
         {
-            let mut table_tx = TxTableW::open_table(&db_write)?;
-            for tx in &block.body.txs {
-                tx_ids.push(tx.id);
-                table_tx.insert(tx.id, &tx.content)?;
+            let mut table_act = ActTableW::open_table(&db_write)?;
+            for act in &block.body.acts {
+                act_ids.push(act.id);
+                table_act.insert(act.id, &act.content)?;
             }
         }
 
@@ -87,7 +87,7 @@ impl BlockChainDb {
                 &BlockInDb {
                     hash: block.header.hash.clone(),
                     timestamp: block.header.timestamp,
-                    tx_ids,
+                    act_ids,
                 },
             )?;
         }

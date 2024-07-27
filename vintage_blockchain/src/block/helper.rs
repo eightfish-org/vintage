@@ -1,7 +1,7 @@
 use crate::db::AsyncBlockChainDb;
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
-use vintage_msg::{Block, BlockBody, BlockHash, BlockHeader, BlockHeight, Tx};
+use vintage_msg::{Block, BlockBody, BlockHash, BlockHeader, BlockHeight, Act};
 use vintage_utils::{current_timestamp, Timestamp};
 
 fn calc_block_hash(
@@ -13,9 +13,9 @@ fn calc_block_hash(
     let mut hasher = Sha256::new();
     hasher.update(block_height.to_be_bytes());
     hasher.update(timestamp.to_be_bytes());
-    for tx in &block_body.txs {
-        hasher.update(tx.id.to_be_bytes());
-        hasher.update(&tx.content);
+    for act in &block_body.acts {
+        hasher.update(act.id.to_be_bytes());
+        hasher.update(&act.content);
     }
     hasher.update(prev_hash);
     hasher.finalize().into()
@@ -35,9 +35,9 @@ pub(super) fn check_block_hash(block: &Block, prev_hash: &BlockHash) -> anyhow::
     }
 }
 
-pub(super) fn new_block(block_height: BlockHeight, txs: Vec<Tx>, prev_hash: &BlockHash) -> Block {
+pub(super) fn new_block(block_height: BlockHeight, acts: Vec<Act>, prev_hash: &BlockHash) -> Block {
     let timestamp = current_timestamp();
-    let block_body = BlockBody { txs };
+    let block_body = BlockBody { acts };
     let block_hash = calc_block_hash(block_height, timestamp, &block_body, &prev_hash);
     Block {
         header: BlockHeader {
@@ -51,8 +51,8 @@ pub(super) fn new_block(block_height: BlockHeight, txs: Vec<Tx>, prev_hash: &Blo
 
 pub(super) async fn persist_block(db: &AsyncBlockChainDb, block: Block) -> anyhow::Result<()> {
     let block_height = block.header.height;
-    let tx_count = block.body.txs.len();
+    let act_count = block.body.acts.len();
     db.write_block(block).await?;
-    log::info!("block {} persisted, tx count: {}", block_height, tx_count);
+    log::info!("block {} persisted, act count: {}", block_height, act_count);
     Ok(())
 }

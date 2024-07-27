@@ -1,22 +1,22 @@
 use rand::{random, thread_rng, Rng};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use vintage_msg::{BlockChainMsg, BlockProduction, Tx};
+use vintage_msg::{BlockChainMsg, BlockProduction, Act};
 use vintage_utils::SendMsg;
 
-pub(super) async fn send_raw_tx_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
+pub(super) async fn send_raw_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
     loop {
         let millis = thread_rng().gen_range(2000..=3000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::RawTx(random_tx()));
+        sender.send_msg(BlockChainMsg::RawAct(random_act()));
     }
 }
 
-pub(super) async fn send_tx_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
+pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
     loop {
         let millis = thread_rng().gen_range(500..=1000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::Tx(random_tx()));
+        sender.send_msg(BlockChainMsg::Act(random_act()));
     }
 }
 
@@ -50,15 +50,15 @@ pub(super) async fn send_block_to_blockchain(sender: mpsc::Sender<BlockChainMsg>
     }
 }
 
-fn random_tx() -> Tx {
+fn random_act() -> Act {
     let len = thread_rng().gen_range(100..=1000);
     let mut content = Vec::<u8>::with_capacity(len);
     for _ in 0..len {
         content.push(random())
     }
 
-    Tx {
-        id: Tx::new_id(),
+    Act {
+        id: Act::new_id(),
         content,
     }
 }

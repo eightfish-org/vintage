@@ -205,10 +205,10 @@ impl Node {
                                 formatted
                             );
                             if let BlockchainMessage::NetworkMsg(msg) = &message.content {
-                                if let NetworkMsg::BroadcastTx(tx) = msg {
-                                    let blockchain_msg = BlockChainMsg::Tx(tx.clone());
+                                if let NetworkMsg::BroadcastAct(act) = msg {
+                                    let blockchain_msg = BlockChainMsg::Act(act.clone());
                                     // Use blockchain_msg here
-                                    log::info!("Send BlockChainMsg::Tx to vintage_blockchain");
+                                    log::info!("Send BlockChainMsg::Act to vintage_blockchain");
                                     if let Err(e) = incoming_messages.send(blockchain_msg).await {
                                         eprintln!("Failed to send message to application layer: {}", e);
                                         break;

@@ -3,7 +3,7 @@ use crate::db::BlockChainDb;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::task::spawn_blocking;
-use vintage_msg::{Block, BlockHash, BlockHeight, TxId};
+use vintage_msg::{Block, BlockHash, BlockHeight, ActId};
 
 #[derive(Clone)]
 pub(crate) struct AsyncBlockChainDb {
@@ -22,14 +22,14 @@ impl AsyncBlockChainDb {
 
 // read
 impl AsyncBlockChainDb {
-    pub async fn check_tx_not_exists(&self, id: TxId) -> anyhow::Result<()> {
+    pub async fn check_act_not_exists(&self, id: ActId) -> anyhow::Result<()> {
         let db = self.db.clone();
-        spawn_blocking(move || db.lock().unwrap().check_tx_not_exists(id)).await?
+        spawn_blocking(move || db.lock().unwrap().check_act_not_exists(id)).await?
     }
 
-    pub async fn check_txs_not_exist(&self, ids: Vec<TxId>) -> anyhow::Result<()> {
+    pub async fn check_acts_not_exist(&self, ids: Vec<ActId>) -> anyhow::Result<()> {
         let db = self.db.clone();
-        spawn_blocking(move || db.lock().unwrap().check_txs_not_exist(&ids)).await?
+        spawn_blocking(move || db.lock().unwrap().check_acts_not_exist(&ids)).await?
     }
 
     pub async fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {

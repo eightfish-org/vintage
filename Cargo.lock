@@ -935,10 +935,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vintage_web"
-version = "0.1.0"
-
-[[package]]
 name = "vintage_worker"
 version = "0.1.0"
 dependencies = [
