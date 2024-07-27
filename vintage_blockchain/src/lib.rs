@@ -1,10 +1,10 @@
+mod act;
 mod block;
 mod db;
-mod act;
 
+use crate::act::{act_handler, raw_act_handler, ActPool};
 use crate::block::{block_msg_handler, BlockMsg, BlockMsgPool};
 use crate::db::AsyncBlockChainDb;
-use crate::act::{raw_act_handler, act_handler, ActPool};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use vintage_msg::{BlockChainMsg, BlockChainMsgChannels, NetworkMsg, WorkerMsg};
@@ -26,7 +26,11 @@ pub struct BlockChain {
 
 impl BlockChain {
     pub async fn create(channels: BlockChainMsgChannels, db_path: String) -> anyhow::Result<Self> {
-        let db_path = if db_path.is_empty() { BLOCKCHAIN_DB_PATH.to_string() } else { db_path };
+        let db_path = if db_path.is_empty() {
+            BLOCKCHAIN_DB_PATH.to_string()
+        } else {
+            db_path
+        };
         Ok(Self {
             db: AsyncBlockChainDb::create(db_path).await?,
             act_pool: ActPool::new(ACT_POOL_CAPACITY),

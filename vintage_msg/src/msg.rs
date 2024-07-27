@@ -1,4 +1,4 @@
-use crate::{Block, BlockProduction, Act, ActId};
+use crate::{Act, ActId, Block, BlockProduction};
 use serde::{Deserialize, Serialize};
 
 pub enum WorkerMsg {

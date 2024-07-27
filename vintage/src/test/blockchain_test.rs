@@ -1,7 +1,7 @@
 use rand::{random, thread_rng, Rng};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use vintage_msg::{BlockChainMsg, BlockProduction, Act};
+use vintage_msg::{Act, BlockChainMsg, BlockProduction};
 use vintage_utils::SendMsg;
 
 pub(super) async fn send_raw_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {

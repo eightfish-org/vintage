@@ -1,7 +1,7 @@
 use crate::db::AsyncBlockChainDb;
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
-use vintage_msg::{Block, BlockBody, BlockHash, BlockHeader, BlockHeight, Act};
+use vintage_msg::{Act, Block, BlockBody, BlockHash, BlockHeader, BlockHeight};
 use vintage_utils::{current_timestamp, Timestamp};
 
 fn calc_block_hash(

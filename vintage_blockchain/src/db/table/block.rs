@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use redb::ReadableTable;
 use serde::{Deserialize, Serialize};
-use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, ActId};
+use vintage_msg::{ActId, BlockHash, BlockHeight, BlockTimestamp};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize};
 
 define_redb_table! {

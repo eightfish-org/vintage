@@ -9,9 +9,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, Mutex};
-use tokio_util::codec::Framed;
-use vintage_msg::{NetworkMsgChannels, NetworkMsg, BlockChainMsg};
 use tokio::task::JoinHandle;
+use tokio_util::codec::Framed;
+use vintage_msg::{BlockChainMsg, NetworkMsg, NetworkMsgChannels};
 pub mod codec;
 pub mod config;
 pub mod messages;
@@ -61,11 +61,8 @@ impl Node {
     */
     pub async fn create(
         config: NodeConfig,
-        channels: NetworkMsgChannels
-    ) -> Result<
-        Self,
-        anyhow::Error,
-    > {
+        channels: NetworkMsgChannels,
+    ) -> Result<Self, anyhow::Error> {
         //let (incoming_tx, incoming_rx) = mpsc::channel(100);
         //let (outgoing_tx, outgoing_rx) = mpsc::channel(100);
         let outgoing_rx = channels.msg_receiver;
@@ -85,7 +82,7 @@ impl Node {
 
         Ok(node)
     }
-    pub fn start_service(mut self) -> JoinHandle<()>{
+    pub fn start_service(mut self) -> JoinHandle<()> {
         // Node operation task
         let mut node = self;
         tokio::spawn(async move {
@@ -210,14 +207,16 @@ impl Node {
                                     // Use blockchain_msg here
                                     log::info!("Send BlockChainMsg::Act to vintage_blockchain");
                                     if let Err(e) = incoming_messages.send(blockchain_msg).await {
-                                        eprintln!("Failed to send message to application layer: {}", e);
+                                        eprintln!(
+                                            "Failed to send message to application layer: {}",
+                                            e
+                                        );
                                         break;
                                     }
                                 }
                             } else {
                                 println!("Message keep at network layer, skip the sending to application layer.")
                             }
-
                         } else {
                             println!("Received message before handshake from {}", addr);
                         }
@@ -334,7 +333,7 @@ async fn reconnect_to_peer(
     listening_addr: SocketAddr,
     peer: &PeerInfo,
     peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
-    incoming_messages: mpsc::Sender<BlockChainMsg>
+    incoming_messages: mpsc::Sender<BlockChainMsg>,
 ) -> Result<(), BoxedError> {
     let socket = tokio::net::TcpStream::connect(peer.address).await?;
     println!("Reconnected to peer: {}", peer.address);

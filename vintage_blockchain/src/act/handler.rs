@@ -1,7 +1,7 @@
 use crate::db::AsyncBlockChainDb;
 use anyhow::anyhow;
 use tokio::sync::mpsc;
-use vintage_msg::{NetworkMsg, Act};
+use vintage_msg::{Act, NetworkMsg};
 use vintage_utils::{Pool, SendMsg};
 
 pub(crate) type ActPool = Pool<Act>;

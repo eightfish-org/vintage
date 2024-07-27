@@ -1,10 +1,10 @@
 use crate::db::{
-    BlockInDb, BlockTableR, BlockTableW, LastBlockHeightTableR, LastBlockHeightTableW, ActTableR,
-    ActTableW,
+    ActTableR, ActTableW, BlockInDb, BlockTableR, BlockTableW, LastBlockHeightTableR,
+    LastBlockHeightTableW,
 };
 use redb::Database;
 use std::path::Path;
-use vintage_msg::{Block, BlockHash, BlockHeight, ActId};
+use vintage_msg::{ActId, Block, BlockHash, BlockHeight};
 
 pub(crate) struct BlockChainDb {
     database: Database,

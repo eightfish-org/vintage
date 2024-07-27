@@ -1,12 +1,12 @@
+use crate::act::ActPool;
 use crate::block::check_block_hash;
 use crate::block::helper::{new_block, persist_block};
 use crate::block::{BlockMsg, BlockMsgPool};
 use crate::db::AsyncBlockChainDb;
-use crate::act::ActPool;
 use crate::MAX_ACT_COUNT_PER_BLOCK;
 use anyhow::anyhow;
 use tokio::sync::mpsc;
-use vintage_msg::{Block, BlockProduction, NetworkMsg, ActId};
+use vintage_msg::{ActId, Block, BlockProduction, NetworkMsg};
 use vintage_utils::{SendMsg, WithId};
 
 pub(crate) async fn block_msg_handler(

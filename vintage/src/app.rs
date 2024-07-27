@@ -5,8 +5,8 @@ use vintage_msg::{
     BlockChainMsgChannels, ConsensusMsgChannels, NetworkMsgChannels, WorkerMsgChannels,
 };
 
-use vintage_state::StateMgr;
 use vintage_network::{config::NodeConfig, Node};
+use vintage_state::StateMgr;
 use vintage_worker::Worker;
 
 #[allow(dead_code)]
@@ -23,7 +23,7 @@ impl Vintage {
         blockchain_chn: BlockChainMsgChannels,
         consensus_chn: ConsensusMsgChannels,
         network_chn: NetworkMsgChannels,
-        config: NodeConfig
+        config: NodeConfig,
     ) -> anyhow::Result<Self> {
         let worker = Worker::create(worker_chn).await?;
         #[allow(unused_variables)]

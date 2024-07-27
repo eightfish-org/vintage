@@ -4,12 +4,12 @@ mod test;
 use crate::app::Vintage;
 use crate::test::start_vintage_test;
 use log::LevelFilter;
-use vintage_msg::msg_channels;
-use vintage_network::config::NodeConfig;
 use std::env;
 use std::fs::File;
-use std::process;
 use std::io::Read;
+use std::process;
+use vintage_msg::msg_channels;
+use vintage_network::config::NodeConfig;
 
 fn print_usage() {
     println!("Usage: exe -c [config_path]]");
@@ -59,7 +59,14 @@ async fn main() -> anyhow::Result<()> {
         network_msg_sender,
     );
 
-    let app = Vintage::create(worker_chn, blockchain_chn, consensus_chn, network_chn, config).await?;
+    let app = Vintage::create(
+        worker_chn,
+        blockchain_chn,
+        consensus_chn,
+        network_chn,
+        config,
+    )
+    .await?;
     app.start_service().await?;
 
     Ok(())
