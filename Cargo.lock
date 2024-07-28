@@ -915,9 +915,12 @@ name = "vintage_state"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "log",
  "redb",
+ "serde",
  "sha2",
  "tokio",
+ "vintage_blockchain",
  "vintage_msg",
  "vintage_utils",
 ]

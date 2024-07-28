@@ -37,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
         consensus_msg_sender,
         network_msg_sender,
         worker_chn,
+        state_chn,
         blockchain_chn,
         consensus_chn,
         network_chn,
@@ -61,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Vintage::create(
         worker_chn,
+        state_chn,
         blockchain_chn,
         consensus_chn,
         network_chn,

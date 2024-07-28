@@ -1,4 +1,4 @@
-use crate::{BlockChainMsg, ConsensusMsg, NetworkMsg, WorkerMsg};
+use crate::{BlockChainMsg, ConsensusMsg, NetworkMsg, StateMsg, WorkerMsg};
 use tokio::sync::mpsc;
 
 pub struct WorkerMsgChannels {
@@ -6,6 +6,11 @@ pub struct WorkerMsgChannels {
     pub msg_receiver: mpsc::Receiver<WorkerMsg>,
     // sender
     pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+}
+
+pub struct StateMsgChannels {
+    // receiver
+    pub msg_receiver: mpsc::Receiver<StateMsg>,
 }
 
 pub struct BlockChainMsgChannels {
@@ -36,6 +41,7 @@ pub fn msg_channels() -> (
     mpsc::Sender<ConsensusMsg>,
     mpsc::Sender<NetworkMsg>,
     WorkerMsgChannels,
+    StateMsgChannels,
     BlockChainMsgChannels,
     ConsensusMsgChannels,
     NetworkMsgChannels,
@@ -44,6 +50,8 @@ pub fn msg_channels() -> (
     const BUFFER: usize = usize::MAX >> 3;
 
     let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<WorkerMsg>(BUFFER);
+    #[allow(unused_variables)]
+    let (state_msg_sender, state_msg_receiver) = mpsc::channel::<StateMsg>(BUFFER);
     let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<BlockChainMsg>(BUFFER);
     let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<ConsensusMsg>(BUFFER);
     let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(BUFFER);
@@ -57,6 +65,9 @@ pub fn msg_channels() -> (
         WorkerMsgChannels {
             msg_receiver: worker_msg_receiver,
             blockchain_msg_sender: blockchain_msg_sender.clone(),
+        },
+        StateMsgChannels {
+            msg_receiver: state_msg_receiver,
         },
         BlockChainMsgChannels {
             msg_receiver: blockchain_msg_receiver,

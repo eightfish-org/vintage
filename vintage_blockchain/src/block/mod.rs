@@ -1,4 +1,3 @@
-pub mod genesis;
 mod handler;
 mod helper;
 mod pool;

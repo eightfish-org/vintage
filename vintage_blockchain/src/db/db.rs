@@ -32,6 +32,12 @@ impl BlockChainDb {
 
 // read
 impl BlockChainDb {
+    pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
+        let db_read = self.database.begin_read()?;
+        let table = LastBlockHeightTableR::open_table(&db_read)?;
+        Ok(table.get_last_block_height()?)
+    }
+
     pub fn check_act_not_exists(&self, id: ActId) -> anyhow::Result<()> {
         let db_read = self.database.begin_read()?;
         let table = ActTableR::open_table(&db_read)?;
@@ -44,16 +50,20 @@ impl BlockChainDb {
         table.check_acts_not_exist(ids)
     }
 
-    pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
+    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<BlockInDb> {
         let db_read = self.database.begin_read()?;
-        let table = LastBlockHeightTableR::open_table(&db_read)?;
-        Ok(table.get_last_block_height()?)
+        let table = BlockTableR::open_table(&db_read)?;
+        table.get_block(block_height)
     }
 
     pub fn get_block_hash(&self, block_height: BlockHeight) -> anyhow::Result<BlockHash> {
-        let db_read = self.database.begin_read()?;
-        let table = BlockTableR::open_table(&db_read)?;
-        Ok(table.get_block(block_height)?.hash)
+        let block = self.get_block(block_height)?;
+        Ok(block.hash)
+    }
+
+    pub fn get_block_act_ids(&self, block_height: BlockHeight) -> anyhow::Result<Vec<ActId>> {
+        let block = self.get_block(block_height)?;
+        Ok(block.act_ids)
     }
 }
 
@@ -75,7 +85,7 @@ impl BlockChainDb {
             let mut table_act = ActTableW::open_table(&db_write)?;
             for act in &block.body.acts {
                 act_ids.push(act.id);
-                table_act.insert(act.id, &act.content)?;
+                table_act.insert(act.id, &*act.content)?;
             }
         }
 

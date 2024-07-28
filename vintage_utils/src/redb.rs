@@ -1,10 +1,95 @@
 use redb::{RedbKey, RedbValue, TypeName};
 use std::cmp::Ordering;
 
-#[derive(Debug)]
-pub struct RedbBytes<const N: usize>;
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// RedbStr
 
-impl<const N: usize> RedbValue for RedbBytes<N> {
+#[derive(Debug)]
+pub enum RedbStr {}
+
+impl RedbValue for RedbStr {
+    type SelfType<'a> = &'a str where Self: 'a;
+    type AsBytes<'a> = &'a str where Self: 'a;
+
+    fn fixed_width() -> Option<usize> {
+        None
+    }
+
+    fn from_bytes<'a>(data: &'a [u8]) -> &'a str
+    where
+        Self: 'a,
+    {
+        std::str::from_utf8(data).unwrap()
+    }
+
+    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> &'a str
+    where
+        Self: 'a,
+        Self: 'b,
+    {
+        value
+    }
+
+    fn type_name() -> TypeName {
+        TypeName::new("RedbStr")
+    }
+}
+
+impl RedbKey for RedbStr {
+    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
+        let str1 = Self::from_bytes(data1);
+        let str2 = Self::from_bytes(data2);
+        str1.cmp(str2)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// RedbBytes
+
+#[derive(Debug)]
+pub enum RedbBytes {}
+
+impl RedbValue for RedbBytes {
+    type SelfType<'a> = &'a [u8] where Self: 'a;
+    type AsBytes<'a> = &'a [u8] where Self: 'a;
+
+    fn fixed_width() -> Option<usize> {
+        None
+    }
+
+    fn from_bytes<'a>(data: &'a [u8]) -> Self::SelfType<'a>
+    where
+        Self: 'a,
+    {
+        data
+    }
+
+    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
+    where
+        Self: 'a,
+        Self: 'b,
+    {
+        value
+    }
+
+    fn type_name() -> TypeName {
+        TypeName::new("RedbBytes")
+    }
+}
+
+impl RedbKey for RedbBytes {
+    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
+        data1.cmp(data2)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// RedbBytesN
+
+#[derive(Debug)]
+pub enum RedbBytesN<const N: usize> {}
+
+impl<const N: usize> RedbValue for RedbBytesN<N> {
     type SelfType<'a> = &'a [u8; N] where Self: 'a;
     type AsBytes<'a> = &'a [u8; N] where Self: 'a;
 
@@ -28,17 +113,18 @@ impl<const N: usize> RedbValue for RedbBytes<N> {
     }
 
     fn type_name() -> TypeName {
-        TypeName::new(&format!("RedbBytes<{N}>"))
+        TypeName::new(&format!("RedbBytesN<{N}>"))
     }
 }
 
-impl<const N: usize> RedbKey for RedbBytes<N> {
+impl<const N: usize> RedbKey for RedbBytesN<N> {
     fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
         data1.cmp(data2)
     }
 }
 
-pub type RedbBytes32 = RedbBytes<32>; // 256 bits
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// define_redb_table
 
 #[macro_export]
 macro_rules! define_redb_table {

@@ -1,9 +1,14 @@
-use crate::{Act, ActId, Block, BlockProduction};
+use crate::{Act, ActEntitiesState, ActId, Block, BlockProduction};
 use serde::{Deserialize, Serialize};
 
 pub enum WorkerMsg {
     ActPersisted(Act),
     ActDuplicated(ActId),
+}
+
+pub enum StateMsg {
+    // from wasm worker
+    ActEntitiesState(ActEntitiesState),
 }
 
 pub enum BlockChainMsg {
