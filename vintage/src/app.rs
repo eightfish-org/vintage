@@ -1,6 +1,6 @@
 use tokio::task::JoinHandle;
 use vintage_blockchain::BlockChain;
-use vintage_consensus::Consensus;
+use vintage_consensus::Validator;
 use vintage_msg::{
     BlockChainMsgChannels, ConsensusMsgChannels, NetworkMsgChannels, StateMsgChannels,
     WorkerMsgChannels,
@@ -13,7 +13,7 @@ use vintage_worker::Worker;
 pub struct Vintage {
     worker: Worker,
     blockchain: BlockChain,
-    consensus: Consensus,
+    validator: Validator,
     node: Node,
 }
 
@@ -29,7 +29,7 @@ impl Vintage {
         let db_path = config.db_path.clone();
 
         let node = Node::create(config, network_chn).await?;
-        let consensus = Consensus::create(consensus_chn).await?;
+        let validator = Validator::new("v".into(),vec![], consensus_chn.network_msg_sender, consensus_chn.msg_receiver);
         #[allow(unused_variables)]
         let (blockchain, blockchain_api) = BlockChain::create(blockchain_chn, db_path).await?;
         #[allow(unused_variables)]
@@ -39,7 +39,7 @@ impl Vintage {
         Ok(Self {
             worker,
             blockchain,
-            consensus,
+            validator,
             node,
         })
     }

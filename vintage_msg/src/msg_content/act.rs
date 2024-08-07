@@ -4,7 +4,7 @@ use vintage_utils::WithId;
 pub type ActId = u128; // uuid，用于检查重复Act消息
 pub type ActContent = Vec<u8>;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Act {
     pub id: ActId,
     pub content: ActContent,

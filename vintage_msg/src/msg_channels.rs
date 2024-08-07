@@ -1,6 +1,6 @@
-use crate::{BlockChainMsg, ConsensusMsg, NetworkMsg, StateMsg, WorkerMsg};
+use crate::{Block, BlockChainMsg, NetworkMsg, StateMsg, WorkerMsg};
 use tokio::sync::mpsc;
-
+use overlord::types::OverlordMsg;
 pub struct WorkerMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<WorkerMsg>,
@@ -23,9 +23,9 @@ pub struct BlockChainMsgChannels {
 
 pub struct ConsensusMsgChannels {
     // receiver
-    pub msg_receiver: mpsc::Receiver<ConsensusMsg>,
+    pub msg_receiver: mpsc::Receiver<OverlordMsg<Block>>,
     // sender
-    pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+    pub network_msg_sender: mpsc::Sender<NetworkMsg>, // -> blockchain
 }
 
 pub struct NetworkMsgChannels {
@@ -38,7 +38,7 @@ pub struct NetworkMsgChannels {
 pub fn msg_channels() -> (
     mpsc::Sender<WorkerMsg>,
     mpsc::Sender<BlockChainMsg>,
-    mpsc::Sender<ConsensusMsg>,
+    mpsc::Sender<OverlordMsg<Block>>,
     mpsc::Sender<NetworkMsg>,
     WorkerMsgChannels,
     StateMsgChannels,
@@ -53,7 +53,7 @@ pub fn msg_channels() -> (
     #[allow(unused_variables)]
     let (state_msg_sender, state_msg_receiver) = mpsc::channel::<StateMsg>(BUFFER);
     let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<BlockChainMsg>(BUFFER);
-    let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<ConsensusMsg>(BUFFER);
+    let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<OverlordMsg<Block>>(BUFFER);
     let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(BUFFER);
 
     // channels
@@ -72,11 +72,11 @@ pub fn msg_channels() -> (
         BlockChainMsgChannels {
             msg_receiver: blockchain_msg_receiver,
             worker_msg_sender,
-            network_msg_sender,
+            network_msg_sender:network_msg_sender.clone(),
         },
         ConsensusMsgChannels {
             msg_receiver: consensus_msg_receiver,
-            blockchain_msg_sender: blockchain_msg_sender.clone(),
+            network_msg_sender: network_msg_sender.clone(),
         },
         NetworkMsgChannels {
             msg_receiver: network_msg_receiver,
