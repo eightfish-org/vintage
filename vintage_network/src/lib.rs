@@ -4,6 +4,7 @@ use futures::StreamExt;
 use messages::{BlockchainMessage, NetworkMessage};
 use peer_manager::{PeerInfo, PeerManager};
 use serde::{Deserialize, Serialize};
+use vintage_msg::ConsensusMsgChannels;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -11,7 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 use tokio_util::codec::Framed;
-use vintage_msg::{BlockChainMsg, NetworkMsg, NetworkMsgChannels};
+use vintage_msg::{BlockChainMsg, NetworkMsg, NetworkMsgChannels, OverlordMsg, Block, OverlordMsgBlock};
 pub mod codec;
 pub mod config;
 pub mod messages;
@@ -25,6 +26,7 @@ pub struct Node {
     peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
     outgoing_messages: mpsc::Receiver<NetworkMsg>,
     incoming_messages: mpsc::Sender<BlockChainMsg>,
+    consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>,
     peer_manager: Arc<PeerManager>,
 }
 
@@ -62,11 +64,13 @@ impl Node {
     pub async fn create(
         config: NodeConfig,
         channels: NetworkMsgChannels,
+        consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>
     ) -> Result<Self, anyhow::Error> {
         //let (incoming_tx, incoming_rx) = mpsc::channel(100);
         //let (outgoing_tx, outgoing_rx) = mpsc::channel(100);
         let outgoing_rx = channels.msg_receiver;
         let incoming_tx = channels.blockchain_msg_sender;
+        let consensus_incoming_tx = consensus_msg_sender;
         let peer_manager = Arc::new(PeerManager::new(5));
         for peer in &config.peers {
             peer_manager.add_peer(peer.address).await;
@@ -77,6 +81,7 @@ impl Node {
             peers: Arc::new(Mutex::new(HashMap::new())),
             incoming_messages: incoming_tx,
             outgoing_messages: outgoing_rx,
+            consensus_incoming_messages: consensus_incoming_tx,
             peer_manager,
         };
 
@@ -96,6 +101,7 @@ impl Node {
         println!("Node now listening on: {}", self.address);
 
         let incoming_messages = self.incoming_messages.clone();
+        let consensus_incoming_messages = self.consensus_incoming_messages.clone();
         let peers = Arc::clone(&self.peers);
         let listen_addr = self.address;
         tokio::spawn(async move {
@@ -107,6 +113,7 @@ impl Node {
                     listen_addr,
                     Arc::clone(&peers),
                     incoming_messages.clone(),
+                    consensus_incoming_messages.clone()
                 )
                 .await
                 {
@@ -163,6 +170,7 @@ impl Node {
         listening_addr: SocketAddr,
         peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
         incoming_messages: mpsc::Sender<BlockChainMsg>,
+        consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>
     ) -> Result<(), BoxedError> {
         let (tx, mut rx) = mpsc::channel::<NetworkMessage>(100);
 
@@ -214,6 +222,17 @@ impl Node {
                                         break;
                                     }
                                 }
+                                if let NetworkMsg::ConsensusMsg(consensus_msg) = msg {
+                                    log::info!("Send ConsensusMsg to vintage_consensus");
+                                    //let consensus_msg = OverlordMsg
+                                    if let Err(e) = consensus_incoming_messages.send(consensus_msg.clone()).await {
+                                        eprintln!(
+                                            "Failed to send message to application layer: {}",
+                                            e
+                                        );
+                                        break;
+                                    }
+                                } 
                             } else {
                                 println!("Message keep at network layer, skip the sending to application layer.")
                             }
@@ -266,6 +285,7 @@ impl Node {
             self.address,
             Arc::clone(&self.peers),
             self.incoming_messages.clone(),
+            self.consensus_incoming_messages.clone()
         )
         .await?;
 
@@ -286,6 +306,7 @@ impl Node {
         let peer_manager = self.peer_manager.clone();
         let peers = self.peers.clone();
         let incoming_messages = self.incoming_messages.clone();
+        let consensus_incoming_messages = self.consensus_incoming_messages.clone();
         let local_address = self.address.clone();
         tokio::spawn(async move {
             loop {
@@ -307,6 +328,7 @@ impl Node {
                         &peer,
                         peers.clone(),
                         incoming_messages.clone(),
+                        consensus_incoming_messages.clone()
                     )
                     .await
                     {
@@ -334,6 +356,7 @@ async fn reconnect_to_peer(
     peer: &PeerInfo,
     peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
     incoming_messages: mpsc::Sender<BlockChainMsg>,
+    consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>
 ) -> Result<(), BoxedError> {
     let socket = tokio::net::TcpStream::connect(peer.address).await?;
     println!("Reconnected to peer: {}", peer.address);
@@ -343,6 +366,7 @@ async fn reconnect_to_peer(
         listening_addr,
         peers,
         incoming_messages,
+        consensus_incoming_messages
     )
     .await?;
     Ok(())

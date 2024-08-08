@@ -10,7 +10,7 @@ tokio = { version = "1.38.0", features = ["full"]  }
 uuid = { version = "1.8.0" }
 # vintage
 vintage_utils = { path = "../vintage_utils" }
-overlord = "0.4"
+overlord = {path = "../../overlord"}
 bytes = { version = "1.1", features = ["serde"] }
 creep = "0.2"
 bincode = "1.3"

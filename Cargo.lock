@@ -665,8 +665,6 @@ dependencies = [
 [[package]]
 name = "overlord"
 version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33af004ea889750116a57fd7bb2d99ea27ad4de4b62bf92822fb84d5de82243f"
 dependencies = [
  "async-trait",
  "bit-vec",

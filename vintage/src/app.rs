@@ -28,7 +28,7 @@ impl Vintage {
     ) -> anyhow::Result<Self> {
         let db_path = config.db_path.clone();
 
-        let node = Node::create(config, network_chn).await?;
+        let node = Node::create(config, network_chn, consensus_chn.consensus_msg_sender).await?;
         let validator = Validator::new("v".into(),vec![], consensus_chn.network_msg_sender, consensus_chn.msg_receiver);
         #[allow(unused_variables)]
         let (blockchain, blockchain_api) = BlockChain::create(blockchain_chn, db_path).await?;
@@ -46,6 +46,7 @@ impl Vintage {
 
     pub fn start_service(self) -> JoinHandle<()> {
         let blockchain = self.blockchain.start_service();
+        //let validator = self.validator.run();
         let worker = self.worker.start_service();
         let node_service = self.node.start_service();
         tokio::spawn(async {

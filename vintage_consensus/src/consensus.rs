@@ -1,6 +1,9 @@
 #![allow(clippy::mutable_key_type)]
 
-use vintage_msg::{BlockBody, NetworkMsg, BlockHeader, BlockProduction, ConsensusMsgChannels};
+use vintage_msg::{
+    BlockBody, BlockHeader, BlockProduction, ConsensusMsgChannels, NetworkMsg,
+    SerializableOverlordMsg,
+};
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -11,7 +14,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use creep::Context;
-use crossbeam_channel::{unbounded};
+use crossbeam_channel::unbounded;
 use hasher::{Hasher, HasherKeccak};
 use hummer::coding::hex_encode;
 use lazy_static::lazy_static;
@@ -21,8 +24,8 @@ use serde::{Deserialize, Serialize};
 use overlord::error::ConsensusError;
 use overlord::types::{Commit, Hash, Node, OverlordMsg, Status, ViewChangeReason};
 use overlord::{Codec, Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal};
+use tokio::sync::mpsc;
 use vintage_msg::Block;
-use tokio::sync::{mpsc};
 lazy_static! {
     static ref HASHER_INST: HasherKeccak = HasherKeccak::new();
 }
@@ -107,13 +110,10 @@ struct ConsensusEngine {
 }
 
 impl ConsensusEngine {
-    fn new(
-        peer_list: Vec<Node>,
-        outbound: mpsc::Sender<NetworkMsg>,
-    ) -> ConsensusEngine {
+    fn new(peer_list: Vec<Node>, outbound: mpsc::Sender<NetworkMsg>) -> ConsensusEngine {
         ConsensusEngine {
             peer_list,
-            outbound
+            outbound,
         }
     }
 }
@@ -125,17 +125,15 @@ impl Consensus<Block> for ConsensusEngine {
         _ctx: Context,
         _height: u64,
     ) -> Result<(Block, Hash), Box<dyn Error + Send>> {
-        let header = BlockHeader{
-            height:1,
-            hash:[0; 32],
+        let header = BlockHeader {
+            height: 1,
+            hash: [0; 32],
 
-            timestamp: 1
+            timestamp: 1,
         };
-        let body = BlockBody{
-            acts:vec![]
-        };
-        let block = Block{header, body};
-        Ok((block,"".into()))
+        let body = BlockBody { acts: vec![] };
+        let block = Block { header, body };
+        Ok((block, "".into()))
         // TODO:
         // send BlockProduce
         // wait response and return
@@ -178,9 +176,8 @@ impl Consensus<Block> for ConsensusEngine {
         _ctx: Context,
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
-        //Skip for now
+        self.outbound.send(NetworkMsg::ConsensusMsg(words)).await;
         Ok(())
-        
     }
 
     async fn transmit_to_relayer(
@@ -209,7 +206,7 @@ pub struct Validator {
     overlord: Arc<Overlord<Block, ConsensusEngine, MockCrypto, MockWal>>,
     handler: OverlordHandler<Block>,
     consensus_engine: Arc<ConsensusEngine>,
-    inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>
+    inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>,
 }
 
 impl Validator {
@@ -217,13 +214,10 @@ impl Validator {
         name: Bytes,
         node_list: Vec<Node>,
         outbound: mpsc::Sender<NetworkMsg>,
-        inbound: mpsc::Receiver<OverlordMsg<Block>> //this is our block chian or database.
+        inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
     ) -> Self {
         let crypto = MockCrypto::new(name.clone());
-        let consensus_engine = Arc::new(ConsensusEngine::new(
-            node_list.clone(),
-            outbound
-        ));
+        let consensus_engine = Arc::new(ConsensusEngine::new(node_list.clone(), outbound));
         let overlord = Overlord::new(
             name,
             Arc::clone(&consensus_engine),
@@ -248,11 +242,11 @@ impl Validator {
             overlord: Arc::new(overlord),
             handler: overlord_handler,
             consensus_engine,
-            inbound: tokio::sync::Mutex::new(inbound)
+            inbound: tokio::sync::Mutex::new(inbound),
         }
     }
 
-    async fn run(
+    pub async fn run(
         self: Arc<Self>,
         interval: u64,
         timer_config: Option<DurationConfig>,
@@ -261,16 +255,14 @@ impl Validator {
         let brain = Arc::<ConsensusEngine>::clone(&self.consensus_engine);
         let handler = self.handler.clone();
         let s = self.clone();
-        tokio::spawn(async move 
-            { 
-                loop {
-                    let msg = {
-                        let mut receiver = s.inbound.lock().await;
-                        receiver.recv().await
-                    };
-            match msg {
-                Some(msg) => {
-                    match msg {
+        tokio::spawn(async move {
+            loop {
+                let msg = {
+                    let mut receiver = s.inbound.lock().await;
+                    receiver.recv().await
+                };
+                match msg {
+                    Some(msg) => match msg {
                         OverlordMsg::SignedVote(vote) => {
                             handler
                                 .send_msg(Context::new(), OverlordMsg::SignedVote(vote))
@@ -292,17 +284,18 @@ impl Validator {
                                 .unwrap();
                         }
                         _ => {}
+                    },
+                    None => {
+                        eprintln!("receive nothing");
+                        // Depending on the error type, you might want to break the loop here
+                        // break;
                     }
                 }
-                None => {
-                    eprintln!("receive nothing");
-                    // Depending on the error type, you might want to break the loop here
-                    // break;
-                }
             }
-        }});
-        
-        self.clone().overlord
+        });
+
+        self.clone()
+            .overlord
             .run(0, interval, node_list, timer_config)
             .await
             .unwrap();
