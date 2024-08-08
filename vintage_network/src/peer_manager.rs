@@ -23,6 +23,8 @@ impl From<SocketAddr> for PeerAddress {
 pub struct PeerInfo {
     pub address: SocketAddr,
     pub name: String,
+    pub propose_weight: u32,
+    pub vote_weight: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +122,8 @@ impl PeerManager {
                     info: PeerInfo {
                         address: addr,
                         name: format!("Node_{}", addr),
+                        vote_weight: 0,
+                        propose_weight: 0
                     },
                     last_seen: Instant::now(),
                     failed_attempts: 0,

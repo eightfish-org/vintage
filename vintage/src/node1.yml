@@ -1,7 +1,15 @@
 listen_addr: 127.0.0.1:8000
+propose_weight: 1
+vote_weight: 1
+name: Node1
+block_interval: 1000
 peers:
   - address: 127.0.0.1:8001
     name: Node2
+    propose_weight: 1
+    vote_weight: 1
   - address: 127.0.0.1:8002
     name: Node3
+    propose_weight: 1
+    vote_weight: 1
 db_path: blockchain1.db

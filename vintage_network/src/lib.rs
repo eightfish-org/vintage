@@ -62,7 +62,7 @@ impl Node {
     }
     */
     pub async fn create(
-        config: NodeConfig,
+        config: &NodeConfig,
         channels: NetworkMsgChannels,
         consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>
     ) -> Result<Self, anyhow::Error> {

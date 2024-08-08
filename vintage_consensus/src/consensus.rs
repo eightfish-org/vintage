@@ -4,6 +4,7 @@ use vintage_msg::{
     BlockBody, BlockHeader, BlockProduction, ConsensusMsgChannels, NetworkMsg,
     SerializableOverlordMsg,
 };
+use vintage_network::config::NodeConfig;
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -26,6 +27,7 @@ use overlord::types::{Commit, Hash, Node, OverlordMsg, Status, ViewChangeReason}
 use overlord::{Codec, Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal};
 use tokio::sync::mpsc;
 use vintage_msg::Block;
+use std::net::SocketAddr;
 lazy_static! {
     static ref HASHER_INST: HasherKeccak = HasherKeccak::new();
 }
@@ -211,11 +213,12 @@ pub struct Validator {
 
 impl Validator {
     pub fn new(
-        name: Bytes,
-        node_list: Vec<Node>,
+        config: &NodeConfig,
         outbound: mpsc::Sender<NetworkMsg>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
     ) -> Self {
+        let name = socket_addr_to_address(config.listen_addr);
+        let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
         let consensus_engine = Arc::new(ConsensusEngine::new(node_list.clone(), outbound));
         let overlord = Overlord::new(
@@ -248,10 +251,11 @@ impl Validator {
 
     pub async fn run(
         self: Arc<Self>,
-        interval: u64,
-        timer_config: Option<DurationConfig>,
-        node_list: Vec<Node>,
+        config: NodeConfig
     ) -> Result<(), Box<dyn Error + Send>> {
+        let interval = config.block_interval;
+        let timer_config = timer_config();
+        let node_list = build_node_list(&config);
         let brain = Arc::<ConsensusEngine>::clone(&self.consensus_engine);
         let handler = self.handler.clone();
         let s = self.clone();
@@ -296,7 +300,7 @@ impl Validator {
 
         self.clone()
             .overlord
-            .run(0, interval, node_list, timer_config)
+            .run(0, interval,node_list,timer_config)
             .await
             .unwrap();
 
@@ -315,6 +319,34 @@ fn hash(bytes: &Bytes) -> Bytes {
     BytesMut::from(&out[..]).freeze()
 }
 
-fn timer_config() -> Option<DurationConfig> {
+pub fn timer_config() -> Option<DurationConfig> {
     Some(DurationConfig::new(10, 10, 10, 3))
+}
+
+fn socket_addr_to_address(addr: SocketAddr) -> Bytes {
+    // Implementation depends on how you want to convert SocketAddr to Address
+    // This is a placeholder implementation
+    Bytes::from(addr.ip().to_string())
+}
+
+fn build_node_list(config: &NodeConfig) -> Vec<Node> {
+    let mut nodes = Vec::new();
+
+    // Add the current node
+    nodes.push(Node {
+        address: socket_addr_to_address(config.listen_addr),
+        propose_weight: config.propose_weight,
+        vote_weight: config.vote_weight,
+    });
+
+    // Add peer nodes
+    for peer in &config.peers {
+        nodes.push(Node {
+            address: socket_addr_to_address(peer.address),
+            propose_weight: peer.propose_weight,
+            vote_weight: peer.vote_weight,
+        });
+    }
+
+    nodes
 }
