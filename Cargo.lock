@@ -665,6 +665,7 @@ dependencies = [
 [[package]]
 name = "overlord"
 version = "0.4.2"
+source = "git+https://github.com/eightfish-org/overlord.git#0757ec1f57b4772dddc5d2f58ce9ec9c09db9ffe"
 dependencies = [
  "async-trait",
  "bit-vec",
