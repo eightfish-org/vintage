@@ -157,6 +157,7 @@ impl Consensus<Block> for ConsensusEngine {
         height: u64,
         commit: Commit<Block>,
     ) -> Result<Status, Box<dyn Error + Send>> {
+        log::info!("=======block commit======");
         Ok(Status {
             height: height + 1,
             interval: Some(SPEECH_INTERVAL),
@@ -217,6 +218,7 @@ impl Validator {
         outbound: mpsc::Sender<NetworkMsg>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
     ) -> Self {
+        log::info!("Validator Created.");
         let name = socket_addr_to_address(config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
@@ -253,13 +255,15 @@ impl Validator {
         self: Arc<Self>,
         config: NodeConfig
     ) -> Result<(), Box<dyn Error + Send>> {
+        log::info!("==Validator run.");
         let interval = config.block_interval;
         let timer_config = timer_config();
         let node_list = build_node_list(&config);
         let brain = Arc::<ConsensusEngine>::clone(&self.consensus_engine);
         let handler = self.handler.clone();
-        let s = self.clone();
-        tokio::spawn(async move {
+        let s: Arc<Validator> = self.clone();
+        let spawned_task = tokio::spawn(async move {
+            log::info!("Validator Started.");
             loop {
                 let msg = {
                     let mut receiver = s.inbound.lock().await;
@@ -303,7 +307,7 @@ impl Validator {
             .run(0, interval,node_list,timer_config)
             .await
             .unwrap();
-
+        spawned_task.await.unwrap();
         Ok(())
     }
 }

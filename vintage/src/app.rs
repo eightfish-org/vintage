@@ -1,11 +1,11 @@
 use tokio::task::JoinHandle;
 use vintage_blockchain::BlockChain;
-use vintage_consensus::{Validator};
+use vintage_consensus::Validator;
 use vintage_msg::{
     BlockChainMsgChannels, ConsensusMsgChannels, NetworkMsgChannels, StateMsgChannels,
     WorkerMsgChannels,
 };
-use vintage_network::{config::{self, NodeConfig}, Node};
+use vintage_network::{config::NodeConfig, Node};
 use vintage_state::State;
 use vintage_worker::Worker;
 use std::sync::Arc;
@@ -53,10 +53,10 @@ impl Vintage {
         let worker = self.worker.start_service();
         let node_service = self.node.start_service();
         tokio::spawn(async {
+            let _ = validator_service.await;
             let _ = blockchain.await;
             let _ = worker.await;
             let _ = node_service.await;
-            let _ = validator_service.await;
         })
     }
 }

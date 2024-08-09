@@ -1371,6 +1371,7 @@ dependencies = [
  "hasher",
  "hummer",
  "lazy_static",
+ "log",
  "overlord",
  "rand 0.7.3",
  "serde",
