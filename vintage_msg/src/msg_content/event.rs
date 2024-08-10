@@ -3,8 +3,8 @@ use vintage_utils::Timestamp;
 
 pub struct BlockEvent {
     pub timestamp: Timestamp,
-    pub acts: Vec<ActEvent>,
-    pub entities: Vec<EntityEvent>,
+    pub act_events: Vec<ActEvent>,
+    pub ue_events: Vec<UpdateEntityEvent>,
 }
 
 pub struct ActEvent {
@@ -13,8 +13,8 @@ pub struct ActEvent {
     pub random: Hashed,
 }
 
-pub struct EntityEvent {
+pub struct UpdateEntityEvent {
     pub model: Model,
     pub req_id: ReqId,
-    pub entity_id: EntityId,
+    pub entity_ids: Vec<EntityId>,
 }

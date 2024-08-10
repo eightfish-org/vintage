@@ -1,10 +1,10 @@
 use crate::db::BlockChainDb;
-use crate::tx::{calc_act_id, ActId, TxPool};
+use crate::tx::{TxId, TxPool};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, BlockChainMsg, NetworkMsg, UpdateEntities};
+use vintage_msg::{Act, BlockChainMsg, CalcHash, NetworkMsg, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
 
 pub struct TxService {
@@ -18,7 +18,6 @@ impl TxService {
     pub(crate) fn new(
         db: BlockChainDb,
         tx_pool: Arc<TxPool>,
-
         msg_receiver: mpsc::Receiver<BlockChainMsg>,
         network_msg_sender: mpsc::Sender<NetworkMsg>,
     ) -> Self {
@@ -33,9 +32,10 @@ impl TxService {
 
 #[async_trait]
 impl Service for TxService {
+    type Input = ();
     type Output = ();
 
-    async fn service(mut self) -> Self::Output {
+    async fn service(mut self, _input: Self::Input) -> Self::Output {
         loop {
             match self.msg_receiver.recv().await {
                 Some(msg) => match msg {
@@ -49,9 +49,9 @@ impl Service for TxService {
                             log::error!("Failed to handle Act: {:?}", err);
                         }
                     }
-                    BlockChainMsg::UpdateEntities(update_entities) => {
-                        if let Err(err) = self.update_entities_handler(update_entities).await {
-                            log::error!("Failed to handle UpdateEntities: {:?}", err);
+                    BlockChainMsg::UpdateEntityTx(tx) => {
+                        if let Err(err) = self.ue_tx_handler(tx).await {
+                            log::error!("Failed to handle UpdateEntityTx: {:?}", err);
                         }
                     }
                 },
@@ -73,30 +73,31 @@ impl TxService {
 
     async fn act_handler(&self, act: Act) -> anyhow::Result<()> {
         let act_id = self.put_act_to_pool(act.clone()).await?;
+        log::info!("act from proxy: {}", act_id);
         self.network_msg_sender
             .send_msg(NetworkMsg::BroadcastAct(act));
-        log::info!("act from worker: {}", act_id);
         Ok(())
     }
 
-    async fn put_act_to_pool(&self, act: Act) -> anyhow::Result<ActId> {
-        let act_id = calc_act_id(&act);
+    async fn put_act_to_pool(&self, act: Act) -> anyhow::Result<TxId> {
+        let act_id = act.calc_hash();
         {
-            if self.tx_pool.guard().acts.contains_act(&act_id) {
+            if self.tx_pool.guard().contains_act(&act_id) {
                 return Err(anyhow!("act already exists in pool"));
             }
         }
         self.db.check_act_not_exists(act_id.clone()).await?;
         {
-            self.tx_pool.guard().acts.insert_act(act_id.clone(), act);
+            self.tx_pool.guard().insert_act(act_id.clone(), act);
         }
         Ok(act_id)
     }
 }
 
-// entity
+// update entity
 impl TxService {
-    async fn update_entities_handler(&self, update_entities: UpdateEntities) -> anyhow::Result<()> {
-        Ok(())
+    async fn ue_tx_handler(&self, tx: UpdateEntityTx) -> anyhow::Result<()> {
+        let tx_id = tx.calc_hash();
+        self.db.insert_ue_tx_to_pool(tx_id, tx).await
     }
 }

@@ -12,7 +12,7 @@ pub struct BlockChainMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<BlockChainMsg>,
     // sender
-    pub worker_msg_sender: mpsc::Sender<ProxyMsg>, // -> worker
+    pub proxy_msg_sender: mpsc::Sender<ProxyMsg>, // -> proxy
     pub network_msg_sender: mpsc::Sender<NetworkMsg>, // -> network
 }
 
@@ -44,24 +44,24 @@ pub fn msg_channels() -> (
     // The maximum number of permits which a semaphore can hold.
     const BUFFER: usize = usize::MAX >> 3;
 
-    let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<ProxyMsg>(BUFFER);
+    let (proxy_msg_sender, proxy_msg_receiver) = mpsc::channel::<ProxyMsg>(BUFFER);
     let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<BlockChainMsg>(BUFFER);
     let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<OverlordMsgBlock>(BUFFER);
     let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(BUFFER);
 
     // channels
     (
-        worker_msg_sender.clone(),
+        proxy_msg_sender.clone(),
         blockchain_msg_sender.clone(),
         consensus_msg_sender.clone(),
         network_msg_sender.clone(),
         ProxyMsgChannels {
-            msg_receiver: worker_msg_receiver,
+            msg_receiver: proxy_msg_receiver,
             blockchain_msg_sender: blockchain_msg_sender.clone(),
         },
         BlockChainMsgChannels {
             msg_receiver: blockchain_msg_receiver,
-            worker_msg_sender,
+            proxy_msg_sender: proxy_msg_sender,
             network_msg_sender: network_msg_sender.clone(),
         },
         ConsensusMsgChannels {

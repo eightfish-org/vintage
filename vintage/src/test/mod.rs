@@ -7,7 +7,7 @@ use vintage_consensus::OverlordMsg;
 use vintage_msg::{Block, BlockChainMsg, NetworkMsg, ProxyMsg};
 
 pub fn start_vintage_test(
-    #[allow(unused_variables)] worker_msg_sender: mpsc::Sender<ProxyMsg>,
+    #[allow(unused_variables)] proxy_msg_sender: mpsc::Sender<ProxyMsg>,
     blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
     #[allow(unused_variables)] consensus_msg_sender: mpsc::Sender<OverlordMsg<Block>>,
     #[allow(unused_variables)] network_msg_sender: mpsc::Sender<NetworkMsg>,

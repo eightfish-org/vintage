@@ -20,11 +20,11 @@ pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) 
     }
 }
 
-pub(super) async fn send_block_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
-    let mut height_block = 1;
+pub(super) async fn send_block_to_blockchain(_sender: mpsc::Sender<BlockChainMsg>) {
+    let mut _height_block = 1;
 
     loop {
-        let ordered = thread_rng().gen_range(1..=100) <= 70; // 70%概率是顺序的
+        let _ordered = thread_rng().gen_range(1..=100) <= 70; // 70%概率是顺序的
 
         let millis = thread_rng().gen_range(1000..=2000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
@@ -46,7 +46,7 @@ pub(super) async fn send_block_to_blockchain(sender: mpsc::Sender<BlockChainMsg>
         //     },
         // }));
 
-        height_block += 2;
+        _height_block += 2;
     }
 }
 

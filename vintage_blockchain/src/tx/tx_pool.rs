@@ -1,27 +1,21 @@
 use crate::ActPool;
-use crate::EntityPool;
 use std::sync::{Mutex, MutexGuard};
+use vintage_msg::Hashed;
+
+pub(crate) type TxId = Hashed;
 
 pub(crate) struct TxPool {
-    inner: Mutex<TxPoolInner>,
-}
-
-pub(crate) struct TxPoolInner {
-    pub acts: ActPool,
-    pub entities: EntityPool,
+    inner: Mutex<ActPool>,
 }
 
 impl TxPool {
-    pub fn new(act_capacity: usize, entity_capacity: usize) -> Self {
+    pub fn new(act_capacity: usize) -> Self {
         Self {
-            inner: Mutex::new(TxPoolInner {
-                acts: ActPool::with_capacity(act_capacity),
-                entities: EntityPool::with_capacity(entity_capacity),
-            }),
+            inner: Mutex::new(ActPool::with_capacity(act_capacity)),
         }
     }
 
-    pub fn guard(&self) -> MutexGuard<'_, TxPoolInner> {
+    pub fn guard(&self) -> MutexGuard<'_, ActPool> {
         self.inner.lock().unwrap()
     }
 }

@@ -1,5 +1,5 @@
 use crate::chain::BlockState;
-use crate::tx::ActId;
+use crate::tx::TxId;
 use anyhow::anyhow;
 use redb::ReadableTable;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,8 @@ pub(crate) struct BlockInDb {
     pub hash: BlockHash,
     pub timestamp: BlockTimestamp,
     pub state: BlockState,
-    pub act_ids: Vec<ActId>,
+    pub act_ids: Vec<TxId>,
+    pub ue_tx_ids: Vec<TxId>,
 }
 
 impl<TABLE> BlockTable<TABLE>
@@ -25,7 +26,7 @@ where
     pub fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
         match self.get(height)? {
             Some(access) => {
-                let (block, _bytes_read) = BlockInDb::bincode_deserialize(&access.value())?;
+                let (block, _bytes_read) = BlockInDb::bincode_deserialize(access.value())?;
                 Ok(block)
             }
             None => Err(anyhow!("block {} not found", height)),

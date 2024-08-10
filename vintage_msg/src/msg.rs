@@ -1,4 +1,4 @@
-use crate::{Act, Block, BlockEvent, UpdateEntities};
+use crate::{Act, Block, BlockEvent, UpdateEntityTx};
 use overlord::types::OverlordMsg;
 use serde::{Deserialize, Serialize};
 
@@ -6,9 +6,9 @@ pub enum BlockChainMsg {
     // from network
     ActFromNetwork(Act),
 
-    // from worker
+    // from proxy
     Act(Act),
-    UpdateEntities(UpdateEntities),
+    UpdateEntityTx(UpdateEntityTx),
 }
 
 pub enum ProxyMsg {

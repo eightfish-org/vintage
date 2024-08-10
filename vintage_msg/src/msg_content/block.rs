@@ -1,5 +1,5 @@
 use crate::msg_content::Hashed;
-use crate::Act;
+use crate::{Act, UpdateEntityTx};
 use bytes::Bytes;
 use overlord::Codec;
 use serde::{Deserialize, Serialize};
@@ -8,10 +8,11 @@ pub type BlockHeight = u64;
 pub type BlockTimestamp = u64;
 pub type BlockHash = Hashed;
 
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub struct Block {
     pub timestamp: BlockTimestamp,
     pub acts: Vec<Act>,
+    pub ue_txs: Vec<UpdateEntityTx>,
 }
 
 macro_rules! impl_codec_for {

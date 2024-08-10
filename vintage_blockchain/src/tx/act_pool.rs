@@ -1,9 +1,9 @@
-use crate::tx::ActId;
+use crate::tx::TxId;
 use std::collections::HashMap;
 use vintage_msg::Act;
 
 pub(crate) struct ActPool {
-    map: HashMap<ActId, Act>,
+    map: HashMap<TxId, Act>,
 }
 
 impl ActPool {
@@ -13,11 +13,11 @@ impl ActPool {
         }
     }
 
-    pub fn contains_act(&self, act_id: &ActId) -> bool {
+    pub fn contains_act(&self, act_id: &TxId) -> bool {
         self.map.contains_key(act_id)
     }
 
-    pub fn get_acts(&self, count: usize) -> (Vec<ActId>, Vec<Act>) {
+    pub fn get_acts(&self, count: usize) -> (Vec<TxId>, Vec<Act>) {
         let mut act_ids = Vec::new();
         let mut acts = Vec::new();
         for (hash, act) in self.map.iter().take(count) {
@@ -27,11 +27,11 @@ impl ActPool {
         (act_ids, acts)
     }
 
-    pub fn insert_act(&mut self, act_id: ActId, act: Act) {
+    pub fn insert_act(&mut self, act_id: TxId, act: Act) {
         self.map.insert(act_id, act);
     }
 
-    pub fn remove_acts(&mut self, act_ids: &[ActId]) {
+    pub fn remove_acts(&mut self, act_ids: &[TxId]) {
         for id in act_ids {
             self.map.remove(id);
         }
