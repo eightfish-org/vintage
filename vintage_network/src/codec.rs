@@ -1,5 +1,4 @@
 use bytes::{Buf, BufMut, BytesMut};
-use serde::{Deserialize, Serialize};
 use tokio_util::codec::{Decoder, Encoder};
 
 use crate::messages::NetworkMessage;

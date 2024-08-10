@@ -1,6 +1,5 @@
 use bincode::config::standard;
 use bincode::error::{DecodeError, EncodeError};
-use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -19,7 +18,7 @@ where
     T: Serialize,
 {
     fn bincode_serialize(&self) -> Result<Vec<u8>, EncodeError> {
-        encode_to_vec(self, standard())
+        bincode::serde::encode_to_vec(self, standard())
     }
 }
 
@@ -28,6 +27,6 @@ where
     T: DeserializeOwned,
 {
     fn bincode_deserialize(bytes: &[u8]) -> Result<(Self, usize), DecodeError> {
-        decode_from_slice(bytes, standard())
+        bincode::serde::decode_from_slice(bytes, standard())
     }
 }

@@ -32,12 +32,11 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let (
-        worker_msg_sender,
+        proxy_msg_sender,
         blockchain_msg_sender,
         consensus_msg_sender,
         network_msg_sender,
-        worker_chn,
-        state_chn,
+        proxy_chn,
         blockchain_chn,
         consensus_chn,
         network_chn,
@@ -54,15 +53,14 @@ async fn main() -> anyhow::Result<()> {
     let config = load_config(config_file)?;
 
     start_vintage_test(
-        worker_msg_sender,
+        proxy_msg_sender,
         blockchain_msg_sender,
         consensus_msg_sender,
         network_msg_sender,
     );
 
     let app = Vintage::create(
-        worker_chn,
-        state_chn,
+        proxy_chn,
         blockchain_chn,
         consensus_chn,
         network_chn,

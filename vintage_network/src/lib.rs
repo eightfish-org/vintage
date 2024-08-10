@@ -62,7 +62,7 @@ impl Node {
     pub async fn create(
         config: &NodeConfig,
         channels: NetworkMsgChannels,
-        consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>
+        consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
     ) -> Result<Self, anyhow::Error> {
         //let (incoming_tx, incoming_rx) = mpsc::channel(100);
         //let (outgoing_tx, outgoing_rx) = mpsc::channel(100);
@@ -85,7 +85,7 @@ impl Node {
 
         Ok(node)
     }
-    pub fn start_service(mut self) -> JoinHandle<()> {
+    pub fn start_service(self) -> JoinHandle<()> {
         // Node operation task
         let mut node = self;
         tokio::spawn(async move {
@@ -111,7 +111,7 @@ impl Node {
                     listen_addr,
                     Arc::clone(&peers),
                     incoming_messages.clone(),
-                    consensus_incoming_messages.clone()
+                    consensus_incoming_messages.clone(),
                 )
                 .await
                 {
@@ -168,7 +168,7 @@ impl Node {
         listening_addr: SocketAddr,
         peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
         incoming_messages: mpsc::Sender<BlockChainMsg>,
-        consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>
+        consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>,
     ) -> Result<(), BoxedError> {
         let (tx, mut rx) = mpsc::channel::<NetworkMessage>(100);
 
@@ -209,7 +209,7 @@ impl Node {
                             );
                             if let BlockchainMessage::NetworkMsg(msg) = &message.content {
                                 if let NetworkMsg::BroadcastAct(act) = msg {
-                                    let blockchain_msg = BlockChainMsg::Act(act.clone());
+                                    let blockchain_msg = BlockChainMsg::ActFromNetwork(act.clone());
                                     // Use blockchain_msg here
                                     log::info!("Send BlockChainMsg::Act to vintage_blockchain");
                                     if let Err(e) = incoming_messages.send(blockchain_msg).await {
@@ -223,14 +223,17 @@ impl Node {
                                 if let NetworkMsg::ConsensusMsg(consensus_msg) = msg {
                                     log::info!("Send ConsensusMsg to vintage_consensus");
                                     //let consensus_msg = OverlordMsg
-                                    if let Err(e) = consensus_incoming_messages.send(consensus_msg.clone()).await {
+                                    if let Err(e) = consensus_incoming_messages
+                                        .send(consensus_msg.clone())
+                                        .await
+                                    {
                                         eprintln!(
                                             "Failed to send message to application layer: {}",
                                             e
                                         );
                                         break;
                                     }
-                                } 
+                                }
                             } else {
                                 println!("Message keep at network layer, skip the sending to application layer.")
                             }
@@ -283,7 +286,7 @@ impl Node {
             self.address,
             Arc::clone(&self.peers),
             self.incoming_messages.clone(),
-            self.consensus_incoming_messages.clone()
+            self.consensus_incoming_messages.clone(),
         )
         .await?;
 
@@ -326,7 +329,7 @@ impl Node {
                         &peer,
                         peers.clone(),
                         incoming_messages.clone(),
-                        consensus_incoming_messages.clone()
+                        consensus_incoming_messages.clone(),
                     )
                     .await
                     {
@@ -354,7 +357,7 @@ async fn reconnect_to_peer(
     peer: &PeerInfo,
     peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
     incoming_messages: mpsc::Sender<BlockChainMsg>,
-    consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>
+    consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>,
 ) -> Result<(), BoxedError> {
     let socket = tokio::net::TcpStream::connect(peer.address).await?;
     println!("Reconnected to peer: {}", peer.address);
@@ -364,7 +367,7 @@ async fn reconnect_to_peer(
         listening_addr,
         peers,
         incoming_messages,
-        consensus_incoming_messages
+        consensus_incoming_messages,
     )
     .await?;
     Ok(())

@@ -1,33 +1,23 @@
 #![allow(clippy::mutable_key_type)]
 
-use vintage_msg::{
-    BlockBody, BlockHeader, BlockProduction, ConsensusMsgChannels, NetworkMsg,
-    SerializableOverlordMsg,
-};
-use vintage_network::config::NodeConfig;
-
-use std::collections::HashMap;
-use std::error::Error;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-
+use crate::BlockConsensus;
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use creep::Context;
-use crossbeam_channel::unbounded;
 use hasher::{Hasher, HasherKeccak};
-use hummer::coding::hex_encode;
 use lazy_static::lazy_static;
-use rand::random;
-use serde::{Deserialize, Serialize};
-
 use overlord::error::ConsensusError;
 use overlord::types::{Commit, Hash, Node, OverlordMsg, Status, ViewChangeReason};
-use overlord::{Codec, Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal};
+use overlord::{Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal};
+use rand::random;
+use std::error::Error;
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use vintage_msg::Block;
-use std::net::SocketAddr;
+use vintage_msg::NetworkMsg;
+use vintage_network::config::NodeConfig;
+
 lazy_static! {
     static ref HASHER_INST: HasherKeccak = HasherKeccak::new();
 }
@@ -106,14 +96,16 @@ impl Crypto for MockCrypto {
     }
 }
 
-struct ConsensusEngine {
+struct ConsensusEngine<BC> {
+    block_consensus: BC,
     peer_list: Vec<Node>,
     outbound: mpsc::Sender<NetworkMsg>,
 }
 
-impl ConsensusEngine {
-    fn new(peer_list: Vec<Node>, outbound: mpsc::Sender<NetworkMsg>) -> ConsensusEngine {
-        ConsensusEngine {
+impl<BC> ConsensusEngine<BC> {
+    fn new(block_consensus: BC, peer_list: Vec<Node>, outbound: mpsc::Sender<NetworkMsg>) -> Self {
+        Self {
+            block_consensus,
             peer_list,
             outbound,
         }
@@ -121,34 +113,26 @@ impl ConsensusEngine {
 }
 
 #[async_trait]
-impl Consensus<Block> for ConsensusEngine {
+impl<BC> Consensus<Block> for ConsensusEngine<BC>
+where
+    BC: BlockConsensus<Block> + Send + Sync,
+{
     async fn get_block(
         &self,
         _ctx: Context,
-        _height: u64,
+        height: u64,
     ) -> Result<(Block, Hash), Box<dyn Error + Send>> {
-        let header = BlockHeader {
-            height: 1,
-            hash: [0; 32],
-
-            timestamp: 1,
-        };
-        let body = BlockBody { acts: vec![] };
-        let block = Block { header, body };
-        Ok((block, "".into()))
-        // TODO:
-        // send BlockProduce
-        // wait response and return
+        self.block_consensus.get_block(height).await
     }
 
     async fn check_block(
         &self,
         _ctx: Context,
-        _height: u64,
-        _hash: Hash,
-        _speech: Block,
+        height: u64,
+        hash: Hash,
+        speech: Block,
     ) -> Result<(), Box<dyn Error + Send>> {
-        Ok(())
+        self.block_consensus.check_block(height, speech, hash).await
     }
 
     async fn commit(
@@ -157,6 +141,10 @@ impl Consensus<Block> for ConsensusEngine {
         height: u64,
         commit: Commit<Block>,
     ) -> Result<Status, Box<dyn Error + Send>> {
+        self.block_consensus
+            .commit(height, commit.content, commit.proof.block_hash)
+            .await?;
+
         log::info!("=======block commit======");
         Ok(Status {
             height: height + 1,
@@ -205,24 +193,35 @@ impl Consensus<Block> for ConsensusEngine {
     }
 }
 
-pub struct Validator {
-    overlord: Arc<Overlord<Block, ConsensusEngine, MockCrypto, MockWal>>,
+pub struct Validator<BC>
+where
+    BC: BlockConsensus<Block> + Send + Sync,
+{
+    overlord: Arc<Overlord<Block, ConsensusEngine<BC>, MockCrypto, MockWal>>,
     handler: OverlordHandler<Block>,
-    consensus_engine: Arc<ConsensusEngine>,
+    consensus_engine: Arc<ConsensusEngine<BC>>,
     inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>,
 }
 
-impl Validator {
+impl<BC> Validator<BC>
+where
+    BC: BlockConsensus<Block> + Send + Sync + 'static,
+{
     pub fn new(
         config: &NodeConfig,
         outbound: mpsc::Sender<NetworkMsg>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
+        block_consensus: BC,
     ) -> Self {
         log::info!("Validator Created.");
         let name = socket_addr_to_address(config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
-        let consensus_engine = Arc::new(ConsensusEngine::new(node_list.clone(), outbound));
+        let consensus_engine = Arc::new(ConsensusEngine::<BC>::new(
+            block_consensus,
+            node_list.clone(),
+            outbound,
+        ));
         let overlord = Overlord::new(
             name,
             Arc::clone(&consensus_engine),
@@ -251,17 +250,14 @@ impl Validator {
         }
     }
 
-    pub async fn run(
-        self: Arc<Self>,
-        config: NodeConfig
-    ) -> Result<(), Box<dyn Error + Send>> {
+    pub async fn run(self: Arc<Self>, config: NodeConfig) -> Result<(), Box<dyn Error + Send>> {
         log::info!("==Validator run.");
         let interval = config.block_interval;
         let timer_config = timer_config();
         let node_list = build_node_list(&config);
-        let brain = Arc::<ConsensusEngine>::clone(&self.consensus_engine);
+        let brain = Arc::<ConsensusEngine<BC>>::clone(&self.consensus_engine);
         let handler = self.handler.clone();
-        let s: Arc<Validator> = self.clone();
+        let s: Arc<Validator<BC>> = self.clone();
         let spawned_task = tokio::spawn(async move {
             log::info!("Validator Started.");
             loop {
@@ -304,7 +300,7 @@ impl Validator {
 
         self.clone()
             .overlord
-            .run(0, interval,node_list,timer_config)
+            .run(0, interval, node_list, timer_config)
             .await
             .unwrap();
         spawned_task.await.unwrap();

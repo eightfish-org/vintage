@@ -23,7 +23,6 @@ pub struct BlockRequest {
     pub end_index: u64,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkMessage {
     pub sender: SocketAddr,

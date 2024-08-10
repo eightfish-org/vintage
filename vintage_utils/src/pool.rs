@@ -33,7 +33,7 @@ where
         self.map.contains_key(id)
     }
 
-    pub fn get_values(&mut self, count: usize) -> Vec<VALUE> {
+    pub fn get_values(&self, count: usize) -> Vec<VALUE> {
         self.map
             .values()
             .take(count)

@@ -1,25 +1,18 @@
-use crate::{Act, ActEntitiesState, ActId, Block, BlockProduction};
-use bytes::Bytes;
+use crate::{Act, Block, BlockEvent, UpdateEntities};
 use overlord::types::OverlordMsg;
 use serde::{Deserialize, Serialize};
 
-pub enum WorkerMsg {
-    ActPersisted(Act),
-    ActDuplicated(ActId),
-}
-
-pub enum StateMsg {
-    // from wasm worker
-    ActEntitiesState(ActEntitiesState),
-}
-
 pub enum BlockChainMsg {
-    // from wasm worker
-    RawAct(Act),
     // from network
+    ActFromNetwork(Act),
+
+    // from worker
     Act(Act),
-    ImportBlock(Block),
-    ProduceBlock(BlockProduction),
+    UpdateEntities(UpdateEntities),
+}
+
+pub enum ProxyMsg {
+    BlockEvent(BlockEvent),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,10 +23,10 @@ pub enum SerializableOverlordMsg {
     SignedChoke(Vec<u8>),
     RichStatus(Vec<u8>),
 }
+
 pub type OverlordMsgBlock = OverlordMsg<Block>;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NetworkMsg {
     BroadcastAct(Act),
-    BroadcastBlock(Block),
     ConsensusMsg(OverlordMsgBlock),
 }

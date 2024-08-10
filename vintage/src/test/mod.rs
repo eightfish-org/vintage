@@ -3,10 +3,11 @@ mod blockchain_test;
 use self::blockchain_test::*;
 
 use tokio::sync::mpsc;
-use vintage_msg::{BlockChainMsg, NetworkMsg, WorkerMsg, Block, OverlordMsg};
+use vintage_consensus::OverlordMsg;
+use vintage_msg::{Block, BlockChainMsg, NetworkMsg, ProxyMsg};
 
 pub fn start_vintage_test(
-    #[allow(unused_variables)] worker_msg_sender: mpsc::Sender<WorkerMsg>,
+    #[allow(unused_variables)] worker_msg_sender: mpsc::Sender<ProxyMsg>,
     blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
     #[allow(unused_variables)] consensus_msg_sender: mpsc::Sender<OverlordMsg<Block>>,
     #[allow(unused_variables)] network_msg_sender: mpsc::Sender<NetworkMsg>,

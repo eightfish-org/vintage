@@ -1,14 +1,14 @@
 use rand::{random, thread_rng, Rng};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, BlockChainMsg, BlockProduction};
+use vintage_msg::{Act, BlockChainMsg};
 use vintage_utils::SendMsg;
 
 pub(super) async fn send_raw_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
     loop {
         let millis = thread_rng().gen_range(2000..=3000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::RawAct(random_act()));
+        sender.send_msg(BlockChainMsg::Act(random_act()));
     }
 }
 
@@ -16,7 +16,7 @@ pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) 
     loop {
         let millis = thread_rng().gen_range(500..=1000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::Act(random_act()));
+        sender.send_msg(BlockChainMsg::ActFromNetwork(random_act()));
     }
 }
 
@@ -28,23 +28,23 @@ pub(super) async fn send_block_to_blockchain(sender: mpsc::Sender<BlockChainMsg>
 
         let millis = thread_rng().gen_range(1000..=2000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::ProduceBlock(BlockProduction {
-            block_height: if ordered {
-                height_block
-            } else {
-                height_block + 1
-            },
-        }));
+        // sender.send_msg(BlockChainMsg::ProduceBlock(BlockProduction {
+        //     block_height: if ordered {
+        //         height_block
+        //     } else {
+        //         height_block + 1
+        //     },
+        // }));
 
         let millis = thread_rng().gen_range(1000..=2000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::ProduceBlock(BlockProduction {
-            block_height: if ordered {
-                height_block + 1
-            } else {
-                height_block
-            },
-        }));
+        // sender.send_msg(BlockChainMsg::ProduceBlock(BlockProduction {
+        //     block_height: if ordered {
+        //         height_block + 1
+        //     } else {
+        //         height_block
+        //     },
+        // }));
 
         height_block += 2;
     }
@@ -58,7 +58,8 @@ fn random_act() -> Act {
     }
 
     Act {
-        id: Act::new_id(),
-        content,
+        kind: "post".to_owned(),
+        model: "model1".to_owned(),
+        data: Vec::new(),
     }
 }

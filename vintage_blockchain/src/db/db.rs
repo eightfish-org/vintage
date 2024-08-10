@@ -1,108 +1,67 @@
-use crate::db::{
-    ActTableR, ActTableW, BlockInDb, BlockTableR, BlockTableW, LastBlockHeightTableR,
-    LastBlockHeightTableW,
-};
-use redb::Database;
+use crate::chain::{BlockState, GENESIS_BLOCK_HASH, GENESIS_BLOCK_HEIGHT, GENESIS_BLOCK_TIMESTAMP};
+use crate::db::{BlockChainDbInner, BlockInDb};
+use crate::tx::ActId;
 use std::path::Path;
-use vintage_msg::{ActId, Block, BlockHash, BlockHeight};
+use std::sync::Arc;
+use tokio::task::spawn_blocking;
+use vintage_msg::{Block, BlockHash, BlockHeight};
 
+#[derive(Clone)]
 pub(crate) struct BlockChainDb {
-    database: Database,
+    db: Arc<BlockChainDbInner>,
 }
 
 // create
 impl BlockChainDb {
-    pub fn create(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let db = Self {
-            database: Database::create(path)?,
-        };
-        db.create_tables()?;
-        Ok(db)
-    }
-
-    fn create_tables(&self) -> anyhow::Result<()> {
-        let db_write = self.database.begin_write()?;
-        ActTableW::open_table(&db_write)?;
-        LastBlockHeightTableW::open_table(&db_write)?;
-        BlockTableW::open_table(&db_write)?;
-        db_write.commit()?;
-        Ok(())
+    pub async fn create(path: impl AsRef<Path> + Send + 'static) -> anyhow::Result<Self> {
+        let db = spawn_blocking(|| BlockChainDbInner::create(path)).await??;
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
 // read
 impl BlockChainDb {
-    pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
-        let db_read = self.database.begin_read()?;
-        let table = LastBlockHeightTableR::open_table(&db_read)?;
-        Ok(table.get_last_block_height()?)
+    pub async fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.get_last_block_height()).await?
     }
 
-    pub fn check_act_not_exists(&self, id: ActId) -> anyhow::Result<()> {
-        let db_read = self.database.begin_read()?;
-        let table = ActTableR::open_table(&db_read)?;
-        table.check_act_not_exists(id)
+    pub async fn check_act_not_exists(&self, act_id: ActId) -> anyhow::Result<()> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.check_act_not_exists(&act_id)).await?
     }
 
-    pub fn check_acts_not_exist(&self, ids: &[ActId]) -> anyhow::Result<()> {
-        let db_read = self.database.begin_read()?;
-        let table = ActTableR::open_table(&db_read)?;
-        table.check_acts_not_exist(ids)
+    pub async fn check_acts_not_exist(&self, ids: Vec<ActId>) -> anyhow::Result<()> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.check_acts_not_exist(&ids)).await?
     }
 
-    pub fn get_block(&self, block_height: BlockHeight) -> anyhow::Result<BlockInDb> {
-        let db_read = self.database.begin_read()?;
-        let table = BlockTableR::open_table(&db_read)?;
-        table.get_block(block_height)
-    }
-
-    pub fn get_block_hash(&self, block_height: BlockHeight) -> anyhow::Result<BlockHash> {
-        let block = self.get_block(block_height)?;
-        Ok(block.hash)
-    }
-
-    pub fn get_block_act_ids(&self, block_height: BlockHeight) -> anyhow::Result<Vec<ActId>> {
-        let block = self.get_block(block_height)?;
-        Ok(block.act_ids)
+    pub async fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
+        if height == GENESIS_BLOCK_HEIGHT {
+            Ok(BlockInDb {
+                hash: GENESIS_BLOCK_HASH,
+                timestamp: GENESIS_BLOCK_TIMESTAMP,
+                state: BlockState { total_acts: 0 },
+                act_ids: Vec::new(),
+            })
+        } else {
+            let db = self.db.clone();
+            spawn_blocking(move || db.get_block(height)).await?
+        }
     }
 }
 
 // write
 impl BlockChainDb {
-    // complete all operations within a single transaction
-    pub fn write_block(&self, block: &Block) -> anyhow::Result<()> {
-        let db_write = self.database.begin_write()?;
-
-        // update last_block_height
-        {
-            let mut table_lbh = LastBlockHeightTableW::open_table(&db_write)?;
-            table_lbh.insert((), block.header.height)?;
-        }
-
-        let mut act_ids = Vec::<ActId>::new();
-        // insert acts
-        {
-            let mut table_act = ActTableW::open_table(&db_write)?;
-            for act in &block.body.acts {
-                act_ids.push(act.id);
-                table_act.insert(act.id, &*act.content)?;
-            }
-        }
-
-        // insert block
-        {
-            let mut table_block = BlockTableW::open_table(&db_write)?;
-            table_block.insert_block(
-                block.header.height,
-                &BlockInDb {
-                    hash: block.header.hash.clone(),
-                    timestamp: block.header.timestamp,
-                    act_ids,
-                },
-            )?;
-        }
-
-        db_write.commit()?;
-        Ok(())
+    pub async fn commit_block(
+        &self,
+        height: BlockHeight,
+        hash: BlockHash,
+        state: BlockState,
+        act_ids: Vec<ActId>,
+        block: Block,
+    ) -> anyhow::Result<()> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.commit_block(height, hash, state, act_ids, &block)).await?
     }
 }

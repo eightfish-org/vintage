@@ -1,22 +1,18 @@
-use crate::{Block, BlockChainMsg, NetworkMsg, StateMsg, WorkerMsg, OverlordMsgBlock};
+use crate::{BlockChainMsg, NetworkMsg, OverlordMsgBlock, ProxyMsg};
 use tokio::sync::mpsc;
-pub struct WorkerMsgChannels {
+
+pub struct ProxyMsgChannels {
     // receiver
-    pub msg_receiver: mpsc::Receiver<WorkerMsg>,
+    pub msg_receiver: mpsc::Receiver<ProxyMsg>,
     // sender
     pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
-}
-
-pub struct StateMsgChannels {
-    // receiver
-    pub msg_receiver: mpsc::Receiver<StateMsg>,
 }
 
 pub struct BlockChainMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<BlockChainMsg>,
     // sender
-    pub worker_msg_sender: mpsc::Sender<WorkerMsg>, // -> worker
+    pub worker_msg_sender: mpsc::Sender<ProxyMsg>, // -> worker
     pub network_msg_sender: mpsc::Sender<NetworkMsg>, // -> network
 }
 
@@ -36,12 +32,11 @@ pub struct NetworkMsgChannels {
 }
 
 pub fn msg_channels() -> (
-    mpsc::Sender<WorkerMsg>,
+    mpsc::Sender<ProxyMsg>,
     mpsc::Sender<BlockChainMsg>,
     mpsc::Sender<OverlordMsgBlock>,
     mpsc::Sender<NetworkMsg>,
-    WorkerMsgChannels,
-    StateMsgChannels,
+    ProxyMsgChannels,
     BlockChainMsgChannels,
     ConsensusMsgChannels,
     NetworkMsgChannels,
@@ -49,9 +44,7 @@ pub fn msg_channels() -> (
     // The maximum number of permits which a semaphore can hold.
     const BUFFER: usize = usize::MAX >> 3;
 
-    let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<WorkerMsg>(BUFFER);
-    #[allow(unused_variables)]
-    let (state_msg_sender, state_msg_receiver) = mpsc::channel::<StateMsg>(BUFFER);
+    let (worker_msg_sender, worker_msg_receiver) = mpsc::channel::<ProxyMsg>(BUFFER);
     let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<BlockChainMsg>(BUFFER);
     let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<OverlordMsgBlock>(BUFFER);
     let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(BUFFER);
@@ -62,22 +55,19 @@ pub fn msg_channels() -> (
         blockchain_msg_sender.clone(),
         consensus_msg_sender.clone(),
         network_msg_sender.clone(),
-        WorkerMsgChannels {
+        ProxyMsgChannels {
             msg_receiver: worker_msg_receiver,
             blockchain_msg_sender: blockchain_msg_sender.clone(),
-        },
-        StateMsgChannels {
-            msg_receiver: state_msg_receiver,
         },
         BlockChainMsgChannels {
             msg_receiver: blockchain_msg_receiver,
             worker_msg_sender,
-            network_msg_sender:network_msg_sender.clone(),
+            network_msg_sender: network_msg_sender.clone(),
         },
         ConsensusMsgChannels {
             msg_receiver: consensus_msg_receiver,
             network_msg_sender: network_msg_sender.clone(),
-            consensus_msg_sender
+            consensus_msg_sender,
         },
         NetworkMsgChannels {
             msg_receiver: network_msg_receiver,

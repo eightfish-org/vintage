@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::time::{Duration, Instant};
+use tokio::time::Instant;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PeerAddress {
@@ -123,7 +123,7 @@ impl PeerManager {
                         address: addr,
                         name: format!("Node_{}", addr),
                         vote_weight: 0,
-                        propose_weight: 0
+                        propose_weight: 0,
                     },
                     last_seen: Instant::now(),
                     failed_attempts: 0,

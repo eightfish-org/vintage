@@ -1,6 +1,7 @@
 use crate::peer_manager::PeerInfo;
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr};
+use std::net::SocketAddr;
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NodeConfig {
     pub listen_addr: SocketAddr,
