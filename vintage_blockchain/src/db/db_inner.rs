@@ -25,9 +25,11 @@ impl BlockChainDbInner {
 
     fn create_tables(&self) -> anyhow::Result<()> {
         let db_write = self.database.begin_write()?;
-        ActTableW::open_table(&db_write)?;
         LastBlockHeightTableW::open_table(&db_write)?;
         BlockTableW::open_table(&db_write)?;
+        ActTableW::open_table(&db_write)?;
+        UpdateEntityTxTableW::open_table(&db_write)?;
+        UpdateEntityTxPoolTableW::open_table(&db_write)?;
         db_write.commit()?;
         Ok(())
     }

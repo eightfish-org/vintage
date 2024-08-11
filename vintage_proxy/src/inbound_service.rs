@@ -1,9 +1,8 @@
-use crate::data::{EntitiesPayload, InputOutputObject};
+use crate::data::{payload_json, EntitiesPayload, InputOutputObject};
 use async_trait::async_trait;
 use futures::StreamExt;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
-use serde_json::json;
 use tokio::sync::mpsc;
 use vintage_msg::{Act, BlockChainApi, BlockChainMsg, Entity, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
@@ -108,10 +107,7 @@ where
             .check_entities(msg_obj.model.clone(), entities)
             .await;
 
-        let ret_payload = json!({
-            "reqid": payload.reqid,
-            "reqdata": check_boolean.to_string(),
-        });
+        let ret_payload = payload_json(&payload.reqid, check_boolean.to_string());
         println!(
             "from redis: check_pair_list: ret_payload: {:?}",
             ret_payload

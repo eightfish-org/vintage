@@ -28,7 +28,7 @@ impl Vintage {
     ) -> anyhow::Result<Self> {
         let (blockchain, blockchain_api, tx_service) =
             BlockChain::create(blockchain_chn, config.db_path.clone()).await?;
-        let proxy = Proxy::create(proxy_chn, blockchain_api).await?;
+        let proxy = Proxy::create(proxy_chn, blockchain_api, config.redis_addr.as_str()).await?;
 
         let node = Node::create(&config, network_chn, consensus_chn.consensus_msg_sender).await?;
         let validator = Validator::new(

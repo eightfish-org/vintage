@@ -1,4 +1,4 @@
-use crate::data::InputOutputObject;
+use crate::data::{payload_json, InputOutputObject};
 use async_trait::async_trait;
 use redis::aio::Connection;
 use redis::AsyncCommands;
@@ -75,10 +75,7 @@ impl ProxyOutboundService {
         } = event;
 
         for entity_id in entity_ids {
-            let payload = json!({
-                "reqid": req_id,
-                "reqdata": entity_id,
-            });
+            let payload = payload_json(&req_id, entity_id);
 
             let output = InputOutputObject {
                 action: "update_index".to_owned(),

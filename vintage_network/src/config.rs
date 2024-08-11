@@ -11,4 +11,5 @@ pub struct NodeConfig {
     pub propose_weight: u32,
     pub vote_weight: u32,
     pub block_interval: u64,
+    pub redis_addr: String,
 }

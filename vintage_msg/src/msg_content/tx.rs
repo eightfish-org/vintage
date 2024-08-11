@@ -3,19 +3,17 @@ use digest::Digest;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
+pub type ActionKind = String;
 pub type Model = String;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // act
 
-pub type ActKind = String;
-pub type ActData = Vec<u8>;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Act {
-    pub kind: ActKind,
+    pub kind: ActionKind,
     pub model: Model,
-    pub data: ActData,
+    pub data: Vec<u8>,
 }
 
 impl CalcHash for Act {
