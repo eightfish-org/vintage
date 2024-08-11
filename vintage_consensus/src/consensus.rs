@@ -2,7 +2,7 @@
 
 use crate::BlockConsensus;
 use async_trait::async_trait;
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use creep::Context;
 use hasher::{Hasher, HasherKeccak};
 use lazy_static::lazy_static;
@@ -12,6 +12,7 @@ use overlord::{Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal
 use rand::random;
 use std::error::Error;
 use std::net::SocketAddr;
+use std::result;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use vintage_msg::Block;
@@ -23,8 +24,6 @@ lazy_static! {
 }
 
 const SPEAKER_NUM: u8 = 10;
-
-const SPEECH_INTERVAL: u64 = 1000; // ms
 
 struct MockWal {
     inner: Mutex<Option<Bytes>>,
@@ -61,8 +60,11 @@ impl MockCrypto {
 }
 
 impl Crypto for MockCrypto {
-    fn hash(&self, speech: Bytes) -> Bytes {
-        hash(&speech)
+    fn hash(&self, block: Bytes) -> Bytes {
+        log::info!("==Crypto block: {:?}", block);
+        let result = hash(&block);
+        log::info!("==Crypto hash: {:?}", result);
+        result
     }
 
     fn sign(&self, _hash: Bytes) -> Result<Bytes, Box<dyn Error + Send>> {
@@ -100,14 +102,16 @@ struct ConsensusEngine<BC> {
     block_consensus: BC,
     peer_list: Vec<Node>,
     outbound: mpsc::Sender<NetworkMsg>,
+    config: NodeConfig
 }
 
 impl<BC> ConsensusEngine<BC> {
-    fn new(block_consensus: BC, peer_list: Vec<Node>, outbound: mpsc::Sender<NetworkMsg>) -> Self {
+    fn new(block_consensus: BC, peer_list: Vec<Node>, outbound: mpsc::Sender<NetworkMsg>, config: NodeConfig) -> Self {
         Self {
             block_consensus,
             peer_list,
             outbound,
+            config
         }
     }
 }
@@ -122,7 +126,19 @@ where
         _ctx: Context,
         height: u64,
     ) -> Result<(Block, Hash), Box<dyn Error + Send>> {
-        self.block_consensus.get_block(height).await
+        log::info!("+++++++get_block++++++++\n");
+        let result = self.block_consensus.get_block(height).await;
+        match result.as_ref() {
+            Ok((block, _hash)) => {
+                // Use block here
+                log::info!("\n=============\nget_block Block: {:?}\n=============", block);
+            },
+            Err(e) => {
+                // Handle the error
+                log::info!("==get_block Error: {}", e);
+            }
+        }
+        result
     }
 
     async fn check_block(
@@ -132,7 +148,13 @@ where
         hash: Hash,
         speech: Block,
     ) -> Result<(), Box<dyn Error + Send>> {
-        self.block_consensus.check_block(height, speech, hash).await
+        log::info!("++++++++++check_block+++++++++++");
+        let result = self.block_consensus.check_block(height, speech, hash).await;
+        match result.as_ref() {
+            Err(e) => log::info!("check_block error"),
+            _ => log::info!("check_block good")
+        }
+        result
     }
 
     async fn commit(
@@ -141,14 +163,13 @@ where
         height: u64,
         commit: Commit<Block>,
     ) -> Result<Status, Box<dyn Error + Send>> {
+        log::info!("=======block commit======");
         self.block_consensus
             .commit(height, commit.content, commit.proof.block_hash)
             .await?;
-
-        log::info!("=======block commit======");
         Ok(Status {
             height: height + 1,
-            interval: Some(SPEECH_INTERVAL),
+            interval: Some(self.config.block_interval),
             timer_config: None,
             authority_list: self.peer_list.clone(),
         })
@@ -167,7 +188,8 @@ where
         _ctx: Context,
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
-        self.outbound.send(NetworkMsg::ConsensusMsg(words)).await;
+        log::info!("==broadcast_to_other");
+        let result = self.outbound.send(NetworkMsg::ConsensusMsg(words)).await;
         Ok(())
     }
 
@@ -181,7 +203,9 @@ where
         Ok(())
     }
 
-    fn report_error(&self, _ctx: Context, _err: ConsensusError) {}
+    fn report_error(&self, _ctx: Context, _err: ConsensusError) {
+        log::info!("++++++++++report_error++++++: {}", _err);
+    }
 
     fn report_view_change(
         &self,
@@ -221,6 +245,7 @@ where
             block_consensus,
             node_list.clone(),
             outbound,
+            config.clone()
         ));
         let overlord = Overlord::new(
             name,
@@ -235,7 +260,7 @@ where
                 Context::new(),
                 OverlordMsg::RichStatus(Status {
                     height: 1,
-                    interval: Some(SPEECH_INTERVAL),
+                    interval: Some(config.block_interval),
                     timer_config: None,
                     authority_list: node_list,
                 }),
@@ -308,11 +333,6 @@ where
     }
 }
 
-fn gen_random_bytes() -> Bytes {
-    let vec: Vec<u8> = (0..10).map(|_| random::<u8>()).collect();
-    Bytes::from(vec)
-}
-
 fn hash(bytes: &Bytes) -> Bytes {
     let mut out = [0u8; 32];
     out.copy_from_slice(&HASHER_INST.digest(bytes));
@@ -320,13 +340,16 @@ fn hash(bytes: &Bytes) -> Bytes {
 }
 
 pub fn timer_config() -> Option<DurationConfig> {
-    Some(DurationConfig::new(10, 10, 10, 3))
+    Some(DurationConfig::new(20, 20, 20, 10))
 }
 
 fn socket_addr_to_address(addr: SocketAddr) -> Bytes {
+    let mut bytes = BytesMut::new();
     // Implementation depends on how you want to convert SocketAddr to Address
     // This is a placeholder implementation
-    Bytes::from(addr.ip().to_string())
+    bytes.extend_from_slice(&addr.ip().to_string().as_bytes());
+    bytes.put_u16(addr.port());
+    bytes.freeze()
 }
 
 fn build_node_list(config: &NodeConfig) -> Vec<Node> {

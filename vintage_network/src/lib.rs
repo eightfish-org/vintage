@@ -342,7 +342,7 @@ impl Node {
                 // Remove unresponsive peers
                 peer_manager.remove_unresponsive_peers().await;
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await; // Run every 60 seconds
+                tokio::time::sleep(tokio::time::Duration::from_secs(120)).await; // Run every 60 seconds
             }
         });
     }

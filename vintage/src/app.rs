@@ -26,6 +26,7 @@ impl Vintage {
         network_chn: NetworkMsgChannels,
         config: NodeConfig,
     ) -> anyhow::Result<Self> {
+        log::info!("Vintage config db path: {}", config.db_path);
         let (blockchain, blockchain_api, tx_service) =
             BlockChain::create(blockchain_chn, config.db_path.clone()).await?;
         let proxy = Proxy::create(proxy_chn, blockchain_api, config.redis_addr.as_str()).await?;
@@ -57,10 +58,10 @@ impl Vintage {
         let node_service = self.node.start_service();
 
         tokio::spawn(async {
+            let _ = validator_service.await;
             let _ = tx_service.await;
             let _ = proxy_inbound.await;
             let _ = proxy_outbound.await;
-            let _ = validator_service.await;
             let _ = node_service.await;
         })
     }

@@ -51,14 +51,14 @@ async fn main() -> anyhow::Result<()> {
 
     let config_file = &args[2];
     let config = load_config(config_file)?;
-
+/* 
     start_vintage_test(
         proxy_msg_sender,
         blockchain_msg_sender,
         consensus_msg_sender,
         network_msg_sender,
     );
-
+*/
     let app = Vintage::create(
         proxy_chn,
         blockchain_chn,
