@@ -27,4 +27,5 @@ pub struct BlockRequest {
 pub struct NetworkMessage {
     pub sender: SocketAddr,
     pub content: BlockchainMessage,
+    pub receiver: Option<SocketAddr>,
 }

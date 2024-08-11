@@ -200,6 +200,7 @@ where
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
         //Skip for now
+        let result = self.outbound.send(NetworkMsg::ConsensusMsgRelay((name, words))).await;
         Ok(())
     }
 
@@ -238,7 +239,7 @@ where
         block_consensus: BC,
     ) -> Self {
         log::info!("Validator Created.");
-        let name = socket_addr_to_address(config.listen_addr);
+        let name = socket_addr_to_bytes(&config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
         let consensus_engine = Arc::new(ConsensusEngine::<BC>::new(
@@ -352,12 +353,16 @@ fn socket_addr_to_address(addr: SocketAddr) -> Bytes {
     bytes.freeze()
 }
 
+fn socket_addr_to_bytes(addr: &SocketAddr) -> Bytes {
+    Bytes::from(addr.to_string())
+}
+
 fn build_node_list(config: &NodeConfig) -> Vec<Node> {
     let mut nodes = Vec::new();
 
     // Add the current node
     nodes.push(Node {
-        address: socket_addr_to_address(config.listen_addr),
+        address: socket_addr_to_bytes(&config.listen_addr),
         propose_weight: config.propose_weight,
         vote_weight: config.vote_weight,
     });
@@ -365,7 +370,7 @@ fn build_node_list(config: &NodeConfig) -> Vec<Node> {
     // Add peer nodes
     for peer in &config.peers {
         nodes.push(Node {
-            address: socket_addr_to_address(peer.address),
+            address: socket_addr_to_bytes(&peer.address),
             propose_weight: peer.propose_weight,
             vote_weight: peer.vote_weight,
         });

@@ -16,7 +16,7 @@ pub mod config;
 pub mod messages;
 mod peer_manager;
 use config::NodeConfig;
-
+use bytes::Bytes;
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 pub struct Node {
@@ -128,11 +128,33 @@ impl Node {
             tokio::select! {
                 Some(message) = self.outgoing_messages.recv() => {
                     //get a broad case message from application
-                    let network_message = NetworkMessage{
-                        sender: self.address,
-                        content: BlockchainMessage::NetworkMsg(message)
-                    };
-                    self.handle_message(network_message).await?;
+                    match &message {
+                        NetworkMsg::ConsensusMsgRelay((addr_bytes, _)) => {
+                            let addr = bytes_to_socket_addr(&addr_bytes);
+                            match addr {
+                                Ok(recovered_addr) => {
+                                    let network_message = NetworkMessage{
+                                        sender: self.address,
+                                        content: BlockchainMessage::NetworkMsg(message),
+                                        receiver: Some(recovered_addr)
+                                    };
+                                    self.handle_message(network_message).await?;
+                                },
+                                Err(e) => println!("Error: {}", e),
+                            }
+
+                        }
+                        _ => {
+                            let network_message = NetworkMessage{
+                                sender: self.address,
+                                content: BlockchainMessage::NetworkMsg(message),
+                                receiver:None
+                            };
+                            self.handle_message(network_message).await?;
+                        }
+                    }
+
+                   
                 }
             }
         }
@@ -142,7 +164,15 @@ impl Node {
         //println!("Processing message: {:.2?}", message);
         let formatted = format!("{:?}", message);
         log::info!("Processing outgoing message:: {:.100}", formatted);
-        self.broadcast_message(message).await
+        match message.receiver {
+            Some(_receiver) => {
+                self.send_message(message).await
+            },
+            None => {
+                self.broadcast_message(message).await
+            }
+        }
+        
     }
 
     async fn broadcast_message(&self, message: NetworkMessage) -> Result<(), BoxedError> {
@@ -154,6 +184,28 @@ impl Node {
                     eprintln!("Failed to send message to peer {}: {}", peer_addr, e);
                 }
             }
+        }
+        // Send the message to the application layer
+        //if let Err(e) = self.outgoing_messages.send(message).await {
+        //    eprintln!("Failed to send message to application layer: {}", e);
+        //}
+        Ok(())
+    }
+
+    async fn send_message(&self, message: NetworkMessage) -> Result<(), BoxedError> {
+        let peers = self.peers.lock().await;
+        match message.receiver {
+            Some(receiver) => {
+                // Send only to the specified receiver
+                if let Some(tx) = peers.get(&receiver) {
+                    if let Err(e) = tx.send(message.clone()).await {
+                        eprintln!("Failed to send message to receiver {}: {}", receiver, e);
+                    }
+                } else {
+                    eprintln!("Receiver {} not found in peers list", receiver);
+                }
+            },
+            None => {}
         }
         // Send the message to the application layer
         //if let Err(e) = self.outgoing_messages.send(message).await {
@@ -184,6 +236,7 @@ impl Node {
         let handshake = NetworkMessage {
             sender: listening_addr,
             content: BlockchainMessage::Handshake(listening_addr),
+            receiver: None
         };
         println!("Send out hand shake message to {}", addr);
         sink.send(handshake).await?;
@@ -233,6 +286,19 @@ impl Node {
                                         );
                                         break;
                                     }
+                                }
+                                if let NetworkMsg::ConsensusMsgRelay((_, consensus_msg)) = msg {
+                                    log::info!("Send ConsensusMsgRelay to vintage_consensus");
+                                    if let Err(e) = consensus_incoming_messages
+                                    .send(consensus_msg.clone())
+                                    .await
+                                {
+                                    eprintln!(
+                                        "Failed to send message to application layer: {}",
+                                        e
+                                    );
+                                    break;
+                                }
                                 }
                             } else {
                                 println!("Message keep at network layer, skip the sending to application layer.")
@@ -346,6 +412,13 @@ impl Node {
             }
         });
     }
+}
+
+fn bytes_to_socket_addr(bytes: &Bytes) -> Result<SocketAddr, std::io::Error> {
+    let addr_str = std::str::from_utf8(bytes)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    addr_str.parse()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 async fn check_peer_health(addr: &SocketAddr) -> bool {

@@ -1,4 +1,5 @@
 use crate::{Act, Block, BlockEvent, UpdateEntityTx};
+use bytes::Bytes;
 use overlord::types::OverlordMsg;
 use serde::{Deserialize, Serialize};
 
@@ -29,4 +30,5 @@ pub type OverlordMsgBlock = OverlordMsg<Block>;
 pub enum NetworkMsg {
     BroadcastAct(Act),
     ConsensusMsg(OverlordMsgBlock),
+    ConsensusMsgRelay((Bytes, OverlordMsgBlock)),
 }
