@@ -1,4 +1,5 @@
 listen_addr: 127.0.0.1:8000
+redis_addr: redis://127.0.0.1:6379
 propose_weight: 1
 vote_weight: 1
 name: Node1
