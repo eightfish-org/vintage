@@ -1,8 +1,8 @@
 use crate::chain::BlockState;
 use crate::db::{
-    ActTableR, ActTableW, BlockInDb, BlockTableR, BlockTableW, EntityTableR, EntityTableW,
-    LastBlockHeightTableR, LastBlockHeightTableW, UpdateEntityTxPoolTableR,
-    UpdateEntityTxPoolTableW, UpdateEntityTxTableR, UpdateEntityTxTableW,
+    ActTableR, ActTableW, BlockHeightTableR, BlockHeightTableW, BlockInDb, BlockTableR,
+    BlockTableW, EntityTableR, EntityTableW, UpdateEntityTxPoolTableR, UpdateEntityTxPoolTableW,
+    UpdateEntityTxTableR, UpdateEntityTxTableW,
 };
 use crate::tx::TxId;
 use redb::Database;
@@ -25,7 +25,7 @@ impl BlockChainDbInner {
 
     fn create_tables(&self) -> anyhow::Result<()> {
         let db_write = self.database.begin_write()?;
-        LastBlockHeightTableW::open_table(&db_write)?;
+        BlockHeightTableW::open_table(&db_write)?;
         BlockTableW::open_table(&db_write)?;
         ActTableW::open_table(&db_write)?;
         UpdateEntityTxTableW::open_table(&db_write)?;
@@ -37,10 +37,10 @@ impl BlockChainDbInner {
 
 // read
 impl BlockChainDbInner {
-    pub fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
+    pub fn get_block_height(&self) -> anyhow::Result<BlockHeight> {
         let db_read = self.database.begin_read()?;
-        let table = LastBlockHeightTableR::open_table(&db_read)?;
-        Ok(table.get_last_block_height()?)
+        let table = BlockHeightTableR::open_table(&db_read)?;
+        Ok(table.get_block_height()?)
     }
 
     pub fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
@@ -159,10 +159,10 @@ impl BlockChainDbInner {
             )?;
         }
 
-        // update last_block_height
+        // update block height
         {
-            let mut table_lbh = LastBlockHeightTableW::open_table(&db_write)?;
-            table_lbh.insert((), height)?;
+            let mut table_block_height = BlockHeightTableW::open_table(&db_write)?;
+            table_block_height.insert((), height)?;
         }
 
         db_write.commit()?;

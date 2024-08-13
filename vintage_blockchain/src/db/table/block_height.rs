@@ -4,14 +4,14 @@ use vintage_msg::BlockHeight;
 use vintage_utils::define_redb_table;
 
 define_redb_table! {
-    pub(crate) (LastBlockHeightTable, LastBlockHeightTableR, LastBlockHeightTableW) = ((), BlockHeight, "last_block_height")
+    pub(crate) (BlockHeightTable, BlockHeightTableR, BlockHeightTableW) = ((), BlockHeight, "last_block_height")
 }
 
-impl<TABLE> LastBlockHeightTable<TABLE>
+impl<TABLE> BlockHeightTable<TABLE>
 where
     TABLE: ReadableTable<(), BlockHeight>,
 {
-    pub fn get_last_block_height(&self) -> Result<BlockHeight, StorageError> {
+    pub fn get_block_height(&self) -> Result<BlockHeight, StorageError> {
         let height = match self.get(())? {
             Some(access) => access.value(),
             None => GENESIS_BLOCK_HEIGHT,

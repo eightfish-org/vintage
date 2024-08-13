@@ -15,8 +15,8 @@ use std::net::SocketAddr;
 use std::result;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-use vintage_msg::Block;
 use vintage_msg::NetworkMsg;
+use vintage_msg::{Block, BlockChainApi};
 use vintage_network::config::NodeConfig;
 
 lazy_static! {
@@ -98,28 +98,37 @@ impl Crypto for MockCrypto {
     }
 }
 
-struct ConsensusEngine<BC> {
+struct ConsensusEngine<BC, TApi> {
     block_consensus: BC,
+    blockchain_api: Arc<TApi>,
     peer_list: Vec<Node>,
     outbound: mpsc::Sender<NetworkMsg>,
-    config: NodeConfig
+    config: NodeConfig,
 }
 
-impl<BC> ConsensusEngine<BC> {
-    fn new(block_consensus: BC, peer_list: Vec<Node>, outbound: mpsc::Sender<NetworkMsg>, config: NodeConfig) -> Self {
+impl<BC, TApi> ConsensusEngine<BC, TApi> {
+    fn new(
+        block_consensus: BC,
+        blockchain_api: Arc<TApi>,
+        peer_list: Vec<Node>,
+        outbound: mpsc::Sender<NetworkMsg>,
+        config: NodeConfig,
+    ) -> Self {
         Self {
             block_consensus,
+            blockchain_api,
             peer_list,
             outbound,
-            config
+            config,
         }
     }
 }
 
 #[async_trait]
-impl<BC> Consensus<Block> for ConsensusEngine<BC>
+impl<BC, TApi> Consensus<Block> for ConsensusEngine<BC, TApi>
 where
     BC: BlockConsensus<Block> + Send + Sync,
+    TApi: BlockChainApi + Send + Sync,
 {
     async fn get_block(
         &self,
@@ -131,8 +140,11 @@ where
         match result.as_ref() {
             Ok((block, _hash)) => {
                 // Use block here
-                log::info!("\n=============\nget_block Block: {:?}\n=============", block);
-            },
+                log::info!(
+                    "\n=============\nget_block Block: {:?}\n=============",
+                    block
+                );
+            }
             Err(e) => {
                 // Handle the error
                 log::info!("==get_block Error: {}", e);
@@ -152,7 +164,7 @@ where
         let result = self.block_consensus.check_block(height, speech, hash).await;
         match result.as_ref() {
             Err(e) => log::info!("check_block error"),
-            _ => log::info!("check_block good")
+            _ => log::info!("check_block good"),
         }
         result
     }
@@ -200,7 +212,10 @@ where
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
         //Skip for now
-        let result = self.outbound.send(NetworkMsg::ConsensusMsgRelay((name, words))).await;
+        let result = self
+            .outbound
+            .send(NetworkMsg::ConsensusMsgRelay((name, words)))
+            .await;
         Ok(())
     }
 
@@ -218,35 +233,39 @@ where
     }
 }
 
-pub struct Validator<BC>
+pub struct Validator<BC, TApi>
 where
     BC: BlockConsensus<Block> + Send + Sync,
+    TApi: BlockChainApi + Send + Sync,
 {
-    overlord: Arc<Overlord<Block, ConsensusEngine<BC>, MockCrypto, MockWal>>,
+    overlord: Arc<Overlord<Block, ConsensusEngine<BC, TApi>, MockCrypto, MockWal>>,
     handler: OverlordHandler<Block>,
-    consensus_engine: Arc<ConsensusEngine<BC>>,
+    consensus_engine: Arc<ConsensusEngine<BC, TApi>>,
     inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>,
 }
 
-impl<BC> Validator<BC>
+impl<BC, TApi> Validator<BC, TApi>
 where
     BC: BlockConsensus<Block> + Send + Sync + 'static,
+    TApi: BlockChainApi + Send + Sync + 'static,
 {
     pub fn new(
         config: &NodeConfig,
         outbound: mpsc::Sender<NetworkMsg>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
         block_consensus: BC,
+        blockchain_api: Arc<TApi>,
     ) -> Self {
         log::info!("Validator Created.");
         let name = socket_addr_to_bytes(&config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
-        let consensus_engine = Arc::new(ConsensusEngine::<BC>::new(
+        let consensus_engine = Arc::new(ConsensusEngine::<BC, TApi>::new(
             block_consensus,
+            blockchain_api,
             node_list.clone(),
             outbound,
-            config.clone()
+            config.clone(),
         ));
         let overlord = Overlord::new(
             name,
@@ -281,9 +300,9 @@ where
         let interval = config.block_interval;
         let timer_config = timer_config();
         let node_list = build_node_list(&config);
-        let brain = Arc::<ConsensusEngine<BC>>::clone(&self.consensus_engine);
+        let brain = Arc::<ConsensusEngine<BC, TApi>>::clone(&self.consensus_engine);
         let handler = self.handler.clone();
-        let s: Arc<Validator<BC>> = self.clone();
+        let s: Arc<Validator<BC, TApi>> = self.clone();
         let spawned_task = tokio::spawn(async move {
             log::info!("Validator Started.");
             loop {

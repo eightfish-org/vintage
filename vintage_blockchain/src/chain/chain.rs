@@ -154,7 +154,7 @@ impl BlockConsensus<Block> for BlockChain {
 
 impl BlockChain {
     async fn check_block_height(&self, height: BlockHeight) -> anyhow::Result<()> {
-        let last_height = self.db.get_last_block_height().await?;
+        let last_height = self.db.get_block_height().await?;
         if height == last_height + 1 {
             Ok(())
         } else {

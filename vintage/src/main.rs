@@ -2,7 +2,6 @@ mod app;
 mod test;
 
 use crate::app::Vintage;
-use crate::test::start_vintage_test;
 use log::LevelFilter;
 use std::env;
 use std::fs::File;
@@ -51,14 +50,14 @@ async fn main() -> anyhow::Result<()> {
 
     let config_file = &args[2];
     let config = load_config(config_file)?;
-/* 
-    start_vintage_test(
-        proxy_msg_sender,
-        blockchain_msg_sender,
-        consensus_msg_sender,
-        network_msg_sender,
-    );
-*/
+    /*
+        start_vintage_test(
+            proxy_msg_sender,
+            blockchain_msg_sender,
+            consensus_msg_sender,
+            network_msg_sender,
+        );
+    */
     let app = Vintage::create(
         proxy_chn,
         blockchain_chn,

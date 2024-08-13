@@ -27,9 +27,9 @@ impl BlockChainDb {
 
 // read
 impl BlockChainDb {
-    pub async fn get_last_block_height(&self) -> anyhow::Result<BlockHeight> {
+    pub async fn get_block_height(&self) -> anyhow::Result<BlockHeight> {
         let db = self.db.clone();
-        spawn_blocking(move || db.get_last_block_height()).await?
+        spawn_blocking(move || db.get_block_height()).await?
     }
 
     pub async fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {

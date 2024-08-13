@@ -13,7 +13,7 @@ use vintage_utils::start_service;
 pub struct Vintage {
     tx_service: TxService,
     proxy: Proxy<BlockChainApiImpl>,
-    validator: Validator<BlockChain>,
+    validator: Validator<BlockChain, BlockChainApiImpl>,
     node: Node,
     config: NodeConfig,
 }
@@ -29,7 +29,12 @@ impl Vintage {
         log::info!("Vintage config db path: {}", config.db_path);
         let (blockchain, blockchain_api, tx_service) =
             BlockChain::create(blockchain_chn, config.db_path.clone()).await?;
-        let proxy = Proxy::create(proxy_chn, blockchain_api, config.redis_addr.as_str()).await?;
+        let proxy = Proxy::create(
+            proxy_chn,
+            blockchain_api.clone(),
+            config.redis_addr.as_str(),
+        )
+        .await?;
 
         let node = Node::create(&config, network_chn, consensus_chn.consensus_msg_sender).await?;
         let validator = Validator::new(
@@ -37,6 +42,7 @@ impl Vintage {
             consensus_chn.network_msg_sender,
             consensus_chn.msg_receiver,
             blockchain,
+            blockchain_api,
         );
 
         Ok(Self {

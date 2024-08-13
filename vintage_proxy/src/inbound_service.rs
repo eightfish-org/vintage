@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use vintage_msg::{Act, BlockChainApi, BlockChainMsg, Entity, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
@@ -10,14 +11,14 @@ use vintage_utils::{SendMsg, Service};
 pub struct ProxyInboundService<TApi> {
     redis_conn: Connection,
     blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
-    blockchain_api: TApi,
+    blockchain_api: Arc<TApi>,
 }
 
 impl<TApi> ProxyInboundService<TApi> {
     pub(crate) fn new(
         redis_conn: Connection,
         blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
-        blockchain_api: TApi,
+        blockchain_api: Arc<TApi>,
     ) -> Self {
         Self {
             redis_conn,
@@ -30,7 +31,7 @@ impl<TApi> ProxyInboundService<TApi> {
 #[async_trait]
 impl<TApi> Service for ProxyInboundService<TApi>
 where
-    TApi: BlockChainApi + Send,
+    TApi: BlockChainApi + Send + Sync,
 {
     type Input = PubSub;
     type Output = anyhow::Result<()>;

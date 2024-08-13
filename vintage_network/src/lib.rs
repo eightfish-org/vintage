@@ -15,8 +15,9 @@ pub mod codec;
 pub mod config;
 pub mod messages;
 mod peer_manager;
-use config::NodeConfig;
 use bytes::Bytes;
+use config::NodeConfig;
+
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 pub struct Node {
@@ -154,7 +155,7 @@ impl Node {
                         }
                     }
 
-                   
+
                 }
             }
         }
@@ -165,14 +166,9 @@ impl Node {
         let formatted = format!("{:?}", message);
         log::info!("Processing outgoing message:: {:.100}", formatted);
         match message.receiver {
-            Some(_receiver) => {
-                self.send_message(message).await
-            },
-            None => {
-                self.broadcast_message(message).await
-            }
+            Some(_receiver) => self.send_message(message).await,
+            None => self.broadcast_message(message).await,
         }
-        
     }
 
     async fn broadcast_message(&self, message: NetworkMessage) -> Result<(), BoxedError> {
@@ -204,7 +200,7 @@ impl Node {
                 } else {
                     eprintln!("Receiver {} not found in peers list", receiver);
                 }
-            },
+            }
             None => {}
         }
         // Send the message to the application layer
@@ -236,7 +232,7 @@ impl Node {
         let handshake = NetworkMessage {
             sender: listening_addr,
             content: BlockchainMessage::Handshake(listening_addr),
-            receiver: None
+            receiver: None,
         };
         println!("Send out hand shake message to {}", addr);
         sink.send(handshake).await?;
@@ -290,15 +286,15 @@ impl Node {
                                 if let NetworkMsg::ConsensusMsgRelay((_, consensus_msg)) = msg {
                                     log::info!("Send ConsensusMsgRelay to vintage_consensus");
                                     if let Err(e) = consensus_incoming_messages
-                                    .send(consensus_msg.clone())
-                                    .await
-                                {
-                                    eprintln!(
-                                        "Failed to send message to application layer: {}",
-                                        e
-                                    );
-                                    break;
-                                }
+                                        .send(consensus_msg.clone())
+                                        .await
+                                    {
+                                        eprintln!(
+                                            "Failed to send message to application layer: {}",
+                                            e
+                                        );
+                                        break;
+                                    }
                                 }
                             } else {
                                 println!("Message keep at network layer, skip the sending to application layer.")
@@ -408,7 +404,8 @@ impl Node {
                 // Remove unresponsive peers
                 peer_manager.remove_unresponsive_peers().await;
 
-                tokio::time::sleep(tokio::time::Duration::from_secs(120)).await; // Run every 60 seconds
+                tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
+                // Run every 60 seconds
             }
         });
     }
@@ -417,7 +414,8 @@ impl Node {
 fn bytes_to_socket_addr(bytes: &Bytes) -> Result<SocketAddr, std::io::Error> {
     let addr_str = std::str::from_utf8(bytes)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    addr_str.parse()
+    addr_str
+        .parse()
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 

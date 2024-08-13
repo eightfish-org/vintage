@@ -20,7 +20,7 @@ impl BlockChain {
     pub async fn create(
         channels: BlockChainMsgChannels,
         db_path: String,
-    ) -> anyhow::Result<(BlockChain, BlockChainApiImpl, TxService)> {
+    ) -> anyhow::Result<(BlockChain, Arc<BlockChainApiImpl>, TxService)> {
         // db
         let db_path = if db_path.is_empty() {
             BLOCKCHAIN_DB_PATH.to_string()
@@ -32,7 +32,7 @@ impl BlockChain {
 
         let tx_pool = Arc::new(TxPool::new(ACT_POOL_CAPACITY));
         let chain = BlockChain::new(db.clone(), tx_pool.clone(), channels.proxy_msg_sender);
-        let api = BlockChainApiImpl::new(db.clone());
+        let api = Arc::new(BlockChainApiImpl::new(db.clone()));
         let tx_service = TxService::new(
             db,
             tx_pool,
