@@ -61,9 +61,9 @@ impl MockCrypto {
 
 impl Crypto for MockCrypto {
     fn hash(&self, block: Bytes) -> Bytes {
-        log::info!("==Crypto block: {:?}", block);
+        //log::info!("==Crypto block: {:?}", block);
         let result = hash(&block);
-        log::info!("==Crypto hash: {:?}", result);
+        //log::info!("==Crypto hash: {:?}", result);
         result
     }
 
@@ -135,13 +135,13 @@ where
         _ctx: Context,
         height: u64,
     ) -> Result<(Block, Hash), Box<dyn Error + Send>> {
-        log::info!("+++++++get_block++++++++\n");
+        //log::info!("+++++++get_block++++++++\n");
         let result = self.block_consensus.get_block(height).await;
         match result.as_ref() {
             Ok((block, _hash)) => {
                 // Use block here
                 log::info!(
-                    "\n=============\nget_block Block: {:?}\n=============",
+                    "\n\n==========================\nget_block Block: {:?}\n==========================\n",
                     block
                 );
             }
@@ -160,7 +160,7 @@ where
         hash: Hash,
         speech: Block,
     ) -> Result<(), Box<dyn Error + Send>> {
-        log::info!("++++++++++check_block+++++++++++");
+        //log::info!("++++++++++check_block+++++++++++");
         let result = self.block_consensus.check_block(height, speech, hash).await;
         match result.as_ref() {
             Err(e) => log::info!("check_block error"),
@@ -175,7 +175,7 @@ where
         height: u64,
         commit: Commit<Block>,
     ) -> Result<Status, Box<dyn Error + Send>> {
-        log::info!("=======block commit======");
+        log::info!("\n\n====================\nblock commit height: {}\n===================\n", height);
         self.block_consensus
             .commit(height, commit.content, commit.proof.block_hash)
             .await?;
@@ -200,7 +200,7 @@ where
         _ctx: Context,
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
-        log::info!("==broadcast_to_other");
+        //log::info!("==broadcast_to_other");
         let result = self.outbound.send(NetworkMsg::ConsensusMsg(words)).await;
         Ok(())
     }
@@ -255,8 +255,9 @@ where
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
         block_consensus: BC,
         blockchain_api: Arc<TApi>,
+        block_height: u64
     ) -> Self {
-        log::info!("Validator Created.");
+        log::info!("Validator Created. start with block_height: {}", block_height);
         let name = socket_addr_to_bytes(&config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
@@ -279,7 +280,7 @@ where
             .send_msg(
                 Context::new(),
                 OverlordMsg::RichStatus(Status {
-                    height: 1,
+                    height: block_height,
                     interval: Some(config.block_interval),
                     timer_config: None,
                     authority_list: node_list,
@@ -300,7 +301,6 @@ where
         let interval = config.block_interval;
         let timer_config = timer_config();
         let node_list = build_node_list(&config);
-        let brain = Arc::<ConsensusEngine<BC, TApi>>::clone(&self.consensus_engine);
         let handler = self.handler.clone();
         let s: Arc<Validator<BC, TApi>> = self.clone();
         let spawned_task = tokio::spawn(async move {
@@ -361,15 +361,6 @@ fn hash(bytes: &Bytes) -> Bytes {
 
 pub fn timer_config() -> Option<DurationConfig> {
     Some(DurationConfig::new(20, 20, 20, 10))
-}
-
-fn socket_addr_to_address(addr: SocketAddr) -> Bytes {
-    let mut bytes = BytesMut::new();
-    // Implementation depends on how you want to convert SocketAddr to Address
-    // This is a placeholder implementation
-    bytes.extend_from_slice(&addr.ip().to_string().as_bytes());
-    bytes.put_u16(addr.port());
-    bytes.freeze()
 }
 
 fn socket_addr_to_bytes(addr: &SocketAddr) -> Bytes {

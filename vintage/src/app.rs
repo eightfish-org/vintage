@@ -3,12 +3,11 @@ use tokio::task::JoinHandle;
 use vintage_blockchain::{BlockChain, BlockChainApiImpl, TxService};
 use vintage_consensus::Validator;
 use vintage_msg::{
-    BlockChainMsgChannels, ConsensusMsgChannels, NetworkMsgChannels, ProxyMsgChannels,
+    BlockChainMsgChannels, ConsensusMsgChannels, NetworkMsgChannels, ProxyMsgChannels,BlockChainApi
 };
 use vintage_network::{config::NodeConfig, Node};
 use vintage_proxy::Proxy;
 use vintage_utils::start_service;
-
 #[allow(dead_code)]
 pub struct Vintage {
     tx_service: TxService,
@@ -35,7 +34,8 @@ impl Vintage {
             config.redis_addr.as_str(),
         )
         .await?;
-
+        let mut block_height = blockchain_api.get_block_height().await.unwrap();
+        block_height = if block_height == 0 { 0 } else { block_height + 1 };
         let node = Node::create(&config, network_chn, consensus_chn.consensus_msg_sender).await?;
         let validator = Validator::new(
             &config,
@@ -43,6 +43,7 @@ impl Vintage {
             consensus_chn.msg_receiver,
             blockchain,
             blockchain_api,
+            block_height
         );
 
         Ok(Self {
