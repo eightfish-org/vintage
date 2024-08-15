@@ -3,7 +3,8 @@ redis_addr: redis://127.0.0.1:6379
 propose_weight: 1
 vote_weight: 1
 name: Node2
-block_interval: 5000
+#block_interval: 5000
+block_interval: 500
 peers:
   - address: 127.0.0.1:8000
     name: Node1
