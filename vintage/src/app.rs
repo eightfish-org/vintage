@@ -35,7 +35,7 @@ impl Vintage {
         )
         .await?;
         let mut block_height = blockchain_api.get_block_height().await.unwrap();
-        block_height = if block_height == 0 { 0 } else { block_height + 1 };
+        block_height = block_height + 1;
         let node = Node::create(&config, network_chn, consensus_chn.consensus_msg_sender).await?;
         let validator = Validator::new(
             &config,
