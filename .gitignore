@@ -1,4 +1,4 @@
 **/target
-blockchain.db
+vintage*.db
 # Rust Rover
 .idea

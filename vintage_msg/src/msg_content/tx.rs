@@ -30,7 +30,7 @@ impl CalcHash for Act {
 // entity
 
 pub type EntityId = String;
-pub type EntityHash = Hashed;
+pub type EntityHash = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entity {

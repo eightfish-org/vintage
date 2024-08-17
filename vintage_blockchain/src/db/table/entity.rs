@@ -1,15 +1,15 @@
 use anyhow::anyhow;
 use redb::ReadableTable;
 use vintage_msg::{EntityHash, EntityId, Model};
-use vintage_utils::{define_redb_table, RedbBytes32, RedbStr};
+use vintage_utils::{define_redb_table, RedbStr};
 
 define_redb_table! {
-    pub(crate) (EntityTable, EntityTableR, EntityTableW) = (RedbStr, RedbBytes32, "entity")
+    pub(crate) (EntityTable, EntityTableR, EntityTableW) = (RedbStr, RedbStr, "entity")
 }
 
 impl<TABLE> EntityTable<TABLE>
 where
-    TABLE: ReadableTable<RedbStr, RedbBytes32>,
+    TABLE: ReadableTable<RedbStr, RedbStr>,
 {
     pub fn get_entity(&self, model: &Model, entity_id: &EntityId) -> anyhow::Result<EntityHash> {
         match self.get(format!("{}:{}", model, entity_id).as_str())? {
@@ -26,7 +26,7 @@ impl<'db, 'txn> EntityTableW<'db, 'txn> {
         entity_id: &EntityId,
         hash: &EntityHash,
     ) -> anyhow::Result<()> {
-        self.insert(format!("{}:{}", model, entity_id).as_str(), hash.as_bytes())?;
+        self.insert(format!("{}:{}", model, entity_id).as_str(), hash.as_str())?;
         Ok(())
     }
 }
