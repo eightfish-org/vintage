@@ -175,7 +175,10 @@ where
         height: u64,
         commit: Commit<Block>,
     ) -> Result<Status, Box<dyn Error + Send>> {
-        log::info!("\n\n====================\nblock commit height: {}\n===================\n", height);
+        log::info!(
+            "\n\n====================\nblock commit height: {}\n===================\n",
+            height
+        );
         self.block_consensus
             .commit(height, commit.content, commit.proof.block_hash)
             .await?;
@@ -255,9 +258,12 @@ where
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
         block_consensus: BC,
         blockchain_api: Arc<TApi>,
-        block_height: u64
+        block_height: u64,
     ) -> Self {
-        log::info!("Validator Created. start with block_height: {}", block_height);
+        log::info!(
+            "Validator Created. start with block_height: {}",
+            block_height
+        );
         let name = socket_addr_to_bytes(&config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
