@@ -1,4 +1,4 @@
-dev_mode: true
+dev_mode: false
 listen_addr: 127.0.0.1:8001
 redis_addr: redis://127.0.0.1:6379
 propose_weight: 1
