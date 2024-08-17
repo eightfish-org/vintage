@@ -38,6 +38,11 @@ impl BlockChain {
 
 #[async_trait]
 impl BlockConsensus<Block> for BlockChain {
+    async fn get_block_height(&self) -> Result<BlockHeight, Box<dyn Error + Send>> {
+        let height = self.db.get_block_height().await?;
+        Ok(height)
+    }
+
     async fn get_block(&self, height: u64) -> Result<(Block, Hash), Box<dyn Error + Send>> {
         // prev block
         self.check_block_height(height).await?;
@@ -132,12 +137,21 @@ impl BlockConsensus<Block> for BlockChain {
         let block_hash: BlockHash = (&hash).try_into()?;
 
         // commit block
+        let block_hash_cloned = block_hash.clone();
         let timestamp = block.timestamp;
         let total_acts = state.total_acts;
         self.db
             .commit_block(height, block_hash, state, act_ids.clone(), ue_tx_ids, block)
             .await?;
-        log::info!("block {} commited, act count: {}", height, acts.len());
+        log::info!(
+            "block commited, height: {},\nhash: {}, timestamp: {}, total_acts: {}, acts: {}, ue_txs: {}",
+            height,
+            block_hash_cloned,
+            timestamp,
+            total_acts,
+            acts.len(),
+            ue_txs.len()
+        );
 
         // after - commit block
         {

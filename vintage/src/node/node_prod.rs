@@ -1,9 +1,10 @@
+use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use vintage_blockchain::{BlockChain, BlockChainApiImpl};
-use vintage_consensus::{OverlordMsg, Validator};
-use vintage_msg::{Block, BlockChainApi, NetworkMsg, NetworkMsgChannels, OverlordMsgBlock};
+use vintage_blockchain::BlockChain;
+use vintage_consensus::{BlockConsensus, OverlordMsg, Validator};
+use vintage_msg::{Block, NetworkMsg, NetworkMsgChannels, OverlordMsgBlock};
 use vintage_network::config::NodeConfig;
 use vintage_network::Node;
 use vintage_utils::Service;
@@ -11,7 +12,7 @@ use vintage_utils::Service;
 pub struct VintageNode {
     config: NodeConfig,
     node: Node,
-    validator: Validator<BlockChain, BlockChainApiImpl>,
+    validator: Validator<BlockChain>,
 }
 
 impl VintageNode {
@@ -20,18 +21,20 @@ impl VintageNode {
         network_chn: NetworkMsgChannels,
         consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
         outbound: mpsc::Sender<NetworkMsg>,
-        inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
+        inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our blockchain or database.
         block_consensus: BlockChain,
-        blockchain_api: Arc<BlockChainApiImpl>,
     ) -> anyhow::Result<Self> {
-        let block_height = blockchain_api.get_block_height().await?;
+        let block_height = block_consensus
+            .get_block_height()
+            .await
+            .map_err(|err| anyhow!("get_block_height err: {:?}", err))?;
+
         let node = Node::create(&config, network_chn, consensus_msg_sender).await?;
         let validator = Validator::new(
             &config,
             outbound,
             inbound,
             block_consensus,
-            blockchain_api,
             block_height + 1,
         );
 
@@ -51,6 +54,7 @@ impl Service for VintageNode {
     async fn service(self, _input: Self::Input) -> Self::Output {
         let validator_service = Arc::new(self.validator).run(self.config.clone());
         let node_service = self.node.start_service();
+
         if let Err(err) = validator_service.await {
             log::error!("Validator service error: {:?}", err)
         }

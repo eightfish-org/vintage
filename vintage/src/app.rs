@@ -1,8 +1,7 @@
-use std::sync::Arc;
 use tokio::task::JoinHandle;
-use vintage_blockchain::{BlockChain, BlockChainApiImpl, TxService};
+use vintage_blockchain::{BlockChain, BlockChainApiImpl, BlockChainConfig, TxService};
 use vintage_msg::{BlockChainMsgChannels, ProxyMsgChannels};
-use vintage_proxy::Proxy;
+use vintage_proxy::{Proxy, ProxyConfig};
 use vintage_utils::start_service;
 
 #[allow(dead_code)]
@@ -13,17 +12,16 @@ pub struct Vintage {
 
 impl Vintage {
     pub async fn create(
-        proxy_chn: ProxyMsgChannels,
+        blockchain_config: BlockChainConfig,
+        proxy_config: ProxyConfig,
         blockchain_chn: BlockChainMsgChannels,
-        db_path: String,
-        redis_addr: String,
-    ) -> anyhow::Result<(Self, BlockChain, Arc<BlockChainApiImpl>)> {
-        log::info!("Vintage config db path: {}", db_path);
+        proxy_chn: ProxyMsgChannels,
+    ) -> anyhow::Result<(Self, BlockChain)> {
         let (blockchain, blockchain_api, tx_service) =
-            BlockChain::create(blockchain_chn, db_path).await?;
-        let proxy = Proxy::create(proxy_chn, blockchain_api.clone(), redis_addr.as_str()).await?;
+            BlockChain::create(blockchain_config, blockchain_chn).await?;
+        let proxy = Proxy::create(proxy_config, proxy_chn, blockchain_api).await?;
 
-        Ok((Self { tx_service, proxy }, blockchain, blockchain_api))
+        Ok((Self { tx_service, proxy }, blockchain))
     }
 
     pub fn start_service(self) -> JoinHandle<()> {

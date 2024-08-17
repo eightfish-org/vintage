@@ -6,6 +6,7 @@ use tokio::sync::mpsc;
 use vintage_consensus::OverlordMsg;
 use vintage_msg::{Block, BlockChainMsg, NetworkMsg, ProxyMsg};
 
+#[allow(dead_code)]
 pub fn start_vintage_test(
     #[allow(unused_variables)] proxy_msg_sender: mpsc::Sender<ProxyMsg>,
     blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
