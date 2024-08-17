@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NodeConfig {
+    pub dev_mode: bool,
     pub listen_addr: SocketAddr,
     pub peers: Vec<PeerInfo>,
     pub db_path: String,
