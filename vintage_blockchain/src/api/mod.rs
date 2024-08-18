@@ -2,6 +2,7 @@ use crate::BlockChainDb;
 use async_trait::async_trait;
 use vintage_msg::{BlockChainApi, BlockHeight, Entity, Model};
 
+#[derive(Clone)]
 pub struct BlockChainApiImpl {
     db: BlockChainDb,
 }

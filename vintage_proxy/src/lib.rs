@@ -5,9 +5,13 @@ mod outbound_service;
 use crate::inbound_service::ProxyInboundService;
 use crate::outbound_service::ProxyOutboundService;
 use redis::aio::PubSub;
-use redis::IntoConnectionInfo;
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use vintage_msg::ProxyMsgChannels;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ProxyConfig {
+    pub redis_addr: String,
+}
 
 pub struct Proxy<TApi> {
     pub inbound: ProxyInboundService<TApi>,
@@ -17,11 +21,12 @@ pub struct Proxy<TApi> {
 
 impl<TApi> Proxy<TApi> {
     pub async fn create(
+        config: ProxyConfig,
         channels: ProxyMsgChannels,
-        blockchain_api: Arc<TApi>,
-        redis_addr: impl IntoConnectionInfo,
+        blockchain_api: TApi,
     ) -> anyhow::Result<Self> {
-        let redis_client = redis::Client::open(redis_addr).unwrap();
+        log::info!("connect to redis: {}", &*config.redis_addr);
+        let redis_client = redis::Client::open(&*config.redis_addr).unwrap();
         let redis_conn = redis_client.get_async_connection().await?;
         let redis_conn_2 = redis_client.get_async_connection().await?;
         let pub_sub = redis_client.get_async_connection().await?.into_pubsub();

@@ -7,9 +7,11 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.86" }
+async-trait = { version = "0.1.80" }
 env_logger = { version = "0.11.3" }
 log = { version = "0.4.21" }
 rand = { version = "0.8.5" }
+serde = { version = "1.0.203", features = ["derive"] }
 tokio = { version = "1.38.0" }
 serde_yaml = "0.9"
 # vintage

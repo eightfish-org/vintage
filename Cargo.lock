@@ -2025,9 +2025,11 @@ name = "vintage"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "env_logger",
  "log",
  "rand 0.8.5",
+ "serde",
  "serde_yaml",
  "tokio 1.38.0",
  "vintage_blockchain",
