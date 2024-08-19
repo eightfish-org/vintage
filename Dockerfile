@@ -5,6 +5,6 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim
 COPY --from=builder /usr/src/app/target/release/vintage /usr/local/bin/vintage
-COPY config.yml /vintage/config.yml
+COPY vintage/config/node1.yml /vintage/config.yml
 CMD ["vintage", "-c", "/vintage/config.yml"]
 
