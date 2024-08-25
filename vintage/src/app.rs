@@ -1,5 +1,7 @@
 use tokio::task::JoinHandle;
-use vintage_blockchain::{BlockChain, BlockChainApiImpl, BlockChainConfig, BlockChainService};
+use vintage_blockchain::{
+    BlockChain, BlockChainApiImpl, BlockChainConfig, BlockChainService, BlockConsensusImpl,
+};
 use vintage_msg::{BlockChainMsgChannels, ProxyMsgChannels};
 use vintage_proxy::{Proxy, ProxyConfig};
 use vintage_utils::start_service;
@@ -16,7 +18,7 @@ impl Vintage {
         proxy_config: ProxyConfig,
         blockchain_chn: BlockChainMsgChannels,
         proxy_chn: ProxyMsgChannels,
-    ) -> anyhow::Result<(Self, BlockChain)> {
+    ) -> anyhow::Result<(Self, BlockConsensusImpl)> {
         let (blockchain, blockchain_api, tx_service) =
             BlockChain::create(blockchain_config, blockchain_chn).await?;
         let proxy = Proxy::create(proxy_config, proxy_chn, blockchain_api).await?;

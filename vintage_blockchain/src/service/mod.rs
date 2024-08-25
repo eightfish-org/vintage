@@ -87,7 +87,7 @@ impl BlockChainService {
     async fn act_handler(&self, act: Act) -> anyhow::Result<()> {
         let act_id = self.put_act_to_pool(act.clone()).await?;
         log::info!("act from proxy: {}", act_id);
-        self.network_msg_sender.broadcast(&act);
+        self.network_msg_sender.broadcast_msg(&act);
         Ok(())
     }
 

@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use vintage_blockchain::BlockChain;
+use vintage_blockchain::BlockConsensusImpl;
 use vintage_consensus::{BlockConsensus, OverlordMsg, Validator};
 use vintage_msg::{Block, MsgToNetwork, NetworkMsgChannels, OverlordMsgBlock};
 use vintage_network::config::NodeConfig;
@@ -12,7 +12,7 @@ use vintage_utils::Service;
 pub struct VintageNode {
     config: NodeConfig,
     node: Node,
-    validator: Validator<BlockChain>,
+    validator: Validator<BlockConsensusImpl>,
 }
 
 impl VintageNode {
@@ -22,7 +22,7 @@ impl VintageNode {
         consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
         outbound: mpsc::Sender<MsgToNetwork>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our blockchain or database.
-        block_consensus: BlockChain,
+        block_consensus: BlockConsensusImpl,
     ) -> anyhow::Result<Self> {
         let block_height = block_consensus
             .get_block_height()

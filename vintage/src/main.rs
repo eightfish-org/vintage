@@ -47,13 +47,13 @@ async fn main() -> anyhow::Result<()> {
     ) = msg_channels();
 
     // vintage
-    let (vintage, blockchain) =
+    let (vintage, block_consensus) =
         Vintage::create(config.blockchain, config.proxy, blockchain_chn, proxy_chn).await?;
     let join_vintage = vintage.start_service();
 
     // node
     let join_node = if config.dev_mode {
-        let node = VintageNodeDev::create(blockchain, config.node.block_interval).await?;
+        let node = VintageNodeDev::create(block_consensus, config.node.block_interval).await?;
         start_service(node, ())
     } else {
         let node = VintageNode::create(
@@ -62,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
             consensus_msg_sender,
             network_msg_sender,
             consensus_chn.msg_receiver,
-            blockchain,
+            block_consensus,
         )
         .await?;
         start_service(node, ())

@@ -1,19 +1,22 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::time::Duration;
-use vintage_blockchain::BlockChain;
+use vintage_blockchain::BlockConsensusImpl;
 use vintage_consensus::BlockConsensus;
 use vintage_msg::BlockHeight;
 use vintage_utils::Service;
 
 pub struct VintageNodeDev {
-    block_consensus: BlockChain,
+    block_consensus: BlockConsensusImpl,
     block_interval: u64,
     next_height: BlockHeight,
 }
 
 impl VintageNodeDev {
-    pub async fn create(block_consensus: BlockChain, block_interval: u64) -> anyhow::Result<Self> {
+    pub async fn create(
+        block_consensus: BlockConsensusImpl,
+        block_interval: u64,
+    ) -> anyhow::Result<Self> {
         let block_height = block_consensus
             .get_block_height()
             .await

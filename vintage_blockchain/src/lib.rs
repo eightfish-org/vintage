@@ -1,14 +1,18 @@
 mod api;
 mod chain;
+mod consensus;
 mod db;
 mod network;
+mod proxy;
 mod service;
 mod tx;
 
 pub use self::api::*;
-pub use self::chain::*;
+pub(crate) use self::chain::*;
+pub use self::consensus::*;
 pub(crate) use self::db::*;
 pub(crate) use self::network::*;
+pub(crate) use self::proxy::*;
 pub use self::service::*;
 pub(crate) use self::tx::*;
 
@@ -25,21 +29,31 @@ pub struct BlockChainConfig {
     pub db_path: String,
 }
 
+pub enum BlockChain {}
+
 impl BlockChain {
     pub async fn create(
         config: BlockChainConfig,
         channels: BlockChainMsgChannels,
-    ) -> anyhow::Result<(BlockChain, BlockChainApiImpl, BlockChainService)> {
+    ) -> anyhow::Result<(BlockConsensusImpl, BlockChainApiImpl, BlockChainService)> {
         let db_inner = create_db_inner(config.db_path).await?;
         let db = BlockChainDb::new(db_inner.clone());
         let tx_pool = Arc::new(TxPool::new(ACT_POOL_CAPACITY));
-        let network_msg_sender = MsgToNetworkSender::new(channels.network_msg_sender);
 
-        let chain = BlockChain::new(db.clone(), tx_pool.clone(), channels.proxy_msg_sender);
+        let chain = Arc::new(tokio::sync::Mutex::new(BlockChainCore::new(
+            db.clone(),
+            tx_pool.clone(),
+            MsgToProxySender::new(channels.proxy_msg_sender),
+        )));
+        let consensus = BlockConsensusImpl::new(chain);
         let api = BlockChainApiImpl::new(db.clone());
-        let tx_service =
-            BlockChainService::new(db, tx_pool, channels.msg_receiver, network_msg_sender);
+        let service = BlockChainService::new(
+            db,
+            tx_pool,
+            channels.msg_receiver,
+            MsgToNetworkSender::new(channels.network_msg_sender),
+        );
 
-        Ok((chain, api, tx_service))
+        Ok((consensus, api, service))
     }
 }

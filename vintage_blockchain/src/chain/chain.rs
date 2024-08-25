@@ -1,33 +1,26 @@
 use crate::chain::BlockState;
 use crate::db::{BlockChainDb, BlockInDb};
+use crate::proxy::MsgToProxySender;
 use crate::tx::{TxId, TxPool};
 use crate::{MAX_ACT_COUNT_PER_BLOCK, MAX_UE_TX_COUNT_PER_BLOCK};
 use anyhow::anyhow;
-use async_trait::async_trait;
 use sha2::{Digest, Sha256};
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
-use vintage_consensus::BlockConsensus;
-use vintage_msg::{
-    Act, ActEvent, Block, BlockEvent, BlockHash, BlockHeight, CalcHash, Hash, Hashed, MsgToProxy,
-    UpdateEntityEvent, UpdateEntityTx,
-};
-use vintage_utils::{current_timestamp, SendMsg, Timestamp};
+use vintage_msg::{Act, Block, BlockHash, BlockHeight, CalcHash, Hash};
+use vintage_utils::{current_timestamp, Timestamp};
 
-pub struct BlockChain {
+pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
+
+pub(crate) struct BlockChainCore {
     db: BlockChainDb,
     tx_pool: Arc<TxPool>,
-    proxy_msg_sender: mpsc::Sender<MsgToProxy>,
+    proxy_msg_sender: MsgToProxySender,
 }
 
-impl BlockChain {
-    pub(crate) fn new(
-        db: BlockChainDb,
-        tx_pool: Arc<TxPool>,
-        proxy_msg_sender: mpsc::Sender<MsgToProxy>,
-    ) -> Self {
+impl BlockChainCore {
+    pub fn new(db: BlockChainDb, tx_pool: Arc<TxPool>, proxy_msg_sender: MsgToProxySender) -> Self {
         Self {
             db,
             tx_pool,
@@ -36,14 +29,13 @@ impl BlockChain {
     }
 }
 
-#[async_trait]
-impl BlockConsensus<Block> for BlockChain {
-    async fn get_block_height(&self) -> Result<BlockHeight, Box<dyn Error + Send>> {
+impl BlockChainCore {
+    pub async fn get_block_height(&self) -> Result<BlockHeight, Box<dyn Error + Send>> {
         let height = self.db.get_block_height().await?;
         Ok(height)
     }
 
-    async fn get_block(&self, height: u64) -> Result<(Block, Hash), Box<dyn Error + Send>> {
+    pub async fn get_block(&self, height: u64) -> Result<(Block, Hash), Box<dyn Error + Send>> {
         // prev block
         self.check_block_height(height).await?;
         let prev_block = self.get_pre_block(height).await?;
@@ -80,7 +72,7 @@ impl BlockConsensus<Block> for BlockChain {
         ))
     }
 
-    async fn check_block(
+    pub async fn check_block(
         &self,
         height: u64,
         block: Block,
@@ -115,8 +107,8 @@ impl BlockConsensus<Block> for BlockChain {
         }
     }
 
-    async fn commit(
-        &self,
+    pub async fn commit(
+        &mut self,
         height: u64,
         block: Block,
         hash: Hash,
@@ -158,15 +150,13 @@ impl BlockConsensus<Block> for BlockChain {
             self.tx_pool.guard().remove_acts(&act_ids);
         }
         self.proxy_msg_sender
-            .send_msg(MsgToProxy::BlockEvent(Self::block_event(
-                timestamp, total_acts, acts, ue_txs,
-            )));
+            .send_block_event(timestamp, total_acts, acts, ue_txs);
 
         Ok(())
     }
 }
 
-impl BlockChain {
+impl BlockChainCore {
     async fn check_block_height(&self, height: BlockHeight) -> anyhow::Result<()> {
         let last_height = self.db.get_block_height().await?;
         if height == last_height + 1 {
@@ -181,33 +171,32 @@ impl BlockChain {
     }
 
     async fn check_ue_txs_exist_in_pool(&self, ue_tx_ids: Vec<TxId>) -> anyhow::Result<()> {
-        let mut count = 0;
+        let mut elapsed = 0;
         for ue_tx_id in ue_tx_ids {
-            self.check_ue_tx_exist_in_pool(&mut count, ue_tx_id).await?;
+            self.check_ue_tx_exist_in_pool(&mut elapsed, ue_tx_id)
+                .await?;
         }
         Ok(())
     }
 
     async fn check_ue_tx_exist_in_pool(
         &self,
-        count: &mut u32,
+        elapsed: &mut u64,
         ue_tx_id: TxId,
     ) -> anyhow::Result<()> {
         while !self.db.ue_tx_exists_in_pool(ue_tx_id.clone()).await? {
             // tx not exists
-            // 100ms * 300 = 30s
-            if *count < 300u32 {
-                *count += 1;
-                tokio::time::sleep(Duration::from_millis(100)).await;
+            if *elapsed < 30_000 {
+                const MILLIS: u64 = 100;
+                tokio::time::sleep(Duration::from_millis(MILLIS)).await;
+                *elapsed += MILLIS;
             } else {
                 return Err(anyhow!("update entity tx {} not exist.", ue_tx_id));
             }
         }
         Ok(())
     }
-}
 
-impl BlockChain {
     fn tx_ids_of(block: &Block) -> (Vec<TxId>, Vec<TxId>) {
         (
             block.acts.iter().map(|act| act.calc_hash()).collect(),
@@ -240,45 +229,6 @@ impl BlockChain {
             hasher.update(ue_tx_id);
         }
         hasher.update(prev_hash);
-        hasher.into()
-    }
-
-    fn block_event(
-        timestamp: Timestamp,
-        total_acts: u64,
-        acts: Vec<Act>,
-        ue_txs: Vec<UpdateEntityTx>,
-    ) -> BlockEvent {
-        let mut act_number = total_acts - acts.len() as u64;
-        let mut act_events = Vec::new();
-        for act in acts {
-            act_number += 1;
-            act_events.push(ActEvent {
-                act,
-                act_number,
-                random: Self::random(act_number),
-            })
-        }
-
-        let mut ue_events = Vec::new();
-        for ue_tx in ue_txs {
-            ue_events.push(UpdateEntityEvent {
-                model: ue_tx.model,
-                req_id: ue_tx.req_id,
-                entity_ids: ue_tx.entities.into_iter().map(|entity| entity.id).collect(),
-            })
-        }
-
-        BlockEvent {
-            timestamp,
-            act_events,
-            ue_events,
-        }
-    }
-
-    fn random(nonce: u64) -> Hashed {
-        let mut hasher = Sha256::new();
-        hasher.update(nonce.to_be_bytes());
         hasher.into()
     }
 }
