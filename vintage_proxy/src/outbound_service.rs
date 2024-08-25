@@ -1,4 +1,4 @@
-use crate::data::{payload_json, InputOutputObject};
+use crate::{payload_json, InputOutputObject};
 use async_trait::async_trait;
 use redis::aio::Connection;
 use redis::AsyncCommands;

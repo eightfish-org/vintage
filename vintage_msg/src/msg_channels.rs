@@ -5,22 +5,22 @@ pub struct ProxyMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<MsgToProxy>,
     // sender
-    pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>, // -> blockchain
+    pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
 }
 
 pub struct BlockChainMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<MsgToBlockChain>,
     // sender
-    pub proxy_msg_sender: mpsc::Sender<MsgToProxy>, // -> proxy
-    pub network_msg_sender: mpsc::Sender<MsgToNetwork>, // -> network
+    pub proxy_msg_sender: mpsc::Sender<MsgToProxy>,
+    pub network_msg_sender: mpsc::Sender<MsgToNetwork>,
 }
 
 pub struct ConsensusMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<OverlordMsgBlock>,
     // sender
-    pub network_msg_sender: mpsc::Sender<MsgToNetwork>, // -> blockchain
+    pub network_msg_sender: mpsc::Sender<MsgToNetwork>,
     pub consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
 }
 
@@ -28,7 +28,7 @@ pub struct NetworkMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<MsgToNetwork>,
     // sender
-    pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>, // -> blockchain
+    pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
 }
 
 pub fn msg_channels() -> (

@@ -10,7 +10,6 @@ use log::LevelFilter;
 use std::env;
 use std::process;
 use vintage_msg::msg_channels;
-use vintage_utils::start_service;
 
 fn print_usage() {
     println!("Usage: exe -c [config_path]]");
@@ -53,10 +52,11 @@ async fn main() -> anyhow::Result<()> {
 
     // node
     let join_node = if config.dev_mode {
-        let node = VintageNodeDev::create(block_consensus, config.node.block_interval).await?;
-        start_service(node, ())
+        VintageNodeDev::create(block_consensus, config.node.block_interval)
+            .await?
+            .start()
     } else {
-        let node = VintageNode::create(
+        VintageNode::create(
             config.node,
             network_chn,
             consensus_msg_sender,
@@ -64,8 +64,8 @@ async fn main() -> anyhow::Result<()> {
             consensus_chn.msg_receiver,
             block_consensus,
         )
-        .await?;
-        start_service(node, ())
+        .await?
+        .start()
     };
 
     join_vintage.await?;

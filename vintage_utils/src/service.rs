@@ -8,13 +8,34 @@ pub trait Service {
     async fn service(self, input: Self::Input) -> Self::Output;
 }
 
-pub fn start_service<TService>(
+pub struct ServiceStarter<TService>
+where
+    TService: Service,
+{
     service: TService,
     input: TService::Input,
-) -> JoinHandle<TService::Output>
+}
+
+impl<TService> ServiceStarter<TService>
 where
     TService: Service + 'static,
     TService::Output: Send + 'static,
 {
-    tokio::spawn(service.service(input))
+    pub fn new(service: TService) -> Self
+    where
+        TService::Input: Default,
+    {
+        Self {
+            service,
+            input: Default::default(),
+        }
+    }
+
+    pub fn new_with_input(service: TService, input: TService::Input) -> Self {
+        Self { service, input }
+    }
+
+    pub fn start(self) -> JoinHandle<TService::Output> {
+        tokio::spawn(self.service.service(self.input))
+    }
 }

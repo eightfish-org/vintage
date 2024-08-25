@@ -7,7 +7,7 @@ use vintage_consensus::{BlockConsensus, OverlordMsg, Validator};
 use vintage_msg::{Block, MsgToNetwork, NetworkMsgChannels, OverlordMsgBlock};
 use vintage_network::config::NodeConfig;
 use vintage_network::Node;
-use vintage_utils::Service;
+use vintage_utils::{Service, ServiceStarter};
 
 pub struct VintageNode {
     config: NodeConfig,
@@ -23,7 +23,7 @@ impl VintageNode {
         outbound: mpsc::Sender<MsgToNetwork>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our blockchain or database.
         block_consensus: BlockConsensusImpl,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<ServiceStarter<Self>> {
         let block_height = block_consensus
             .get_block_height()
             .await
@@ -38,11 +38,11 @@ impl VintageNode {
             block_height + 1,
         );
 
-        Ok(Self {
+        Ok(ServiceStarter::new(Self {
             config,
             node,
             validator,
-        })
+        }))
     }
 }
 

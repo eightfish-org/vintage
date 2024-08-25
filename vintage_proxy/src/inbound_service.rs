@@ -1,4 +1,4 @@
-use crate::data::{payload_json, EntitiesPayload, InputOutputObject};
+use crate::{payload_json, EntitiesPayload, InputOutputObject};
 use async_trait::async_trait;
 use futures::StreamExt;
 use redis::aio::{Connection, PubSub};

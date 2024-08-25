@@ -5,10 +5,9 @@ use crate::tx::{TxId, TxPool};
 use crate::{MAX_ACT_COUNT_PER_BLOCK, MAX_UE_TX_COUNT_PER_BLOCK};
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
-use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
-use vintage_msg::{Act, Block, BlockHash, BlockHeight, CalcHash, Hash};
+use vintage_msg::{Act, Block, BlockHash, BlockHeight, CalcHash, Hashed};
 use vintage_utils::{current_timestamp, Timestamp};
 
 pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
@@ -30,15 +29,14 @@ impl BlockChainCore {
 }
 
 impl BlockChainCore {
-    pub async fn get_block_height(&self) -> Result<BlockHeight, Box<dyn Error + Send>> {
-        let height = self.db.get_block_height().await?;
-        Ok(height)
+    pub async fn get_block_height(&self) -> anyhow::Result<BlockHeight> {
+        self.db.get_block_height().await
     }
 
-    pub async fn get_block(&self, height: u64) -> Result<(Block, Hash), Box<dyn Error + Send>> {
-        // prev block
+    pub async fn new_block(&self, height: u64) -> anyhow::Result<(Block, Hashed)> {
         self.check_block_height(height).await?;
-        let prev_block = self.get_pre_block(height).await?;
+        // prev block
+        let prev_block = self.get_block(height - 1).await?;
 
         // tx
         let (act_ids, acts) = { self.tx_pool.guard().get_acts(MAX_ACT_COUNT_PER_BLOCK) };
@@ -68,18 +66,13 @@ impl BlockChainCore {
                 acts,
                 ue_txs,
             },
-            (&hash).into(),
+            hash,
         ))
     }
 
-    pub async fn check_block(
-        &self,
-        height: u64,
-        block: Block,
-        hash: Hash,
-    ) -> Result<(), Box<dyn Error + Send>> {
+    pub async fn check_block(&self, height: u64, block: Block, hash: Hashed) -> anyhow::Result<()> {
         // prev block
-        let prev_block = self.get_pre_block(height).await?;
+        let prev_block = self.get_block(height - 1).await?;
 
         // tx
         let (act_ids, ue_tx_ids) = Self::tx_ids_of(&block);
@@ -91,7 +84,6 @@ impl BlockChainCore {
         let state = Self::block_state(&prev_block, &block.acts);
 
         // hash
-        let block_hash: BlockHash = (&hash).try_into()?;
         let calc_hash = Self::calc_block_hash(
             height,
             block.timestamp,
@@ -100,22 +92,22 @@ impl BlockChainCore {
             &ue_tx_ids,
             &prev_block.hash,
         );
-        if block_hash == calc_hash {
+        if hash == calc_hash {
             Ok(())
         } else {
-            Err(anyhow!("block hash, {} != {}", block_hash, calc_hash).into())
+            Err(anyhow!("block hash, {} != {}", hash, calc_hash).into())
         }
     }
 
-    pub async fn commit(
+    pub async fn commit_block(
         &mut self,
         height: u64,
         block: Block,
-        hash: Hash,
-    ) -> Result<(), Box<dyn Error + Send>> {
-        // prev block
+        hash: Hashed,
+    ) -> anyhow::Result<()> {
         self.check_block_height(height).await?;
-        let prev_block = self.get_pre_block(height).await?;
+        // prev block
+        let prev_block = self.get_block(height - 1).await?;
 
         // tx
         let (act_ids, ue_tx_ids) = Self::tx_ids_of(&block);
@@ -125,15 +117,12 @@ impl BlockChainCore {
         // state
         let state = Self::block_state(&prev_block, &block.acts);
 
-        // hash
-        let block_hash: BlockHash = (&hash).try_into()?;
-
         // commit block
-        let block_hash_cloned = block_hash.clone();
+        let block_hash_cloned = hash.clone();
         let timestamp = block.timestamp;
         let total_acts = state.total_acts;
         self.db
-            .commit_block(height, block_hash, state, act_ids.clone(), ue_tx_ids, block)
+            .commit_block(height, hash, state, act_ids.clone(), ue_tx_ids, block)
             .await?;
         log::info!(
             "block commited, height: {},\nhash: {}, timestamp: {}, total_acts: {}, acts: {}, ue_txs: {}",
@@ -166,8 +155,8 @@ impl BlockChainCore {
         }
     }
 
-    async fn get_pre_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
-        self.db.get_block(height - 1).await
+    async fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
+        self.db.get_block(height).await
     }
 
     async fn check_ue_txs_exist_in_pool(&self, ue_tx_ids: Vec<TxId>) -> anyhow::Result<()> {
@@ -186,7 +175,7 @@ impl BlockChainCore {
     ) -> anyhow::Result<()> {
         while !self.db.ue_tx_exists_in_pool(ue_tx_id.clone()).await? {
             // tx not exists
-            if *elapsed < 30_000 {
+            if *elapsed < 10_000 {
                 const MILLIS: u64 = 100;
                 tokio::time::sleep(Duration::from_millis(MILLIS)).await;
                 *elapsed += MILLIS;

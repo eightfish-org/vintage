@@ -130,7 +130,7 @@ where
         height: u64,
     ) -> Result<(Block, Hash), Box<dyn Error + Send>> {
         //log::info!("+++++++get_block++++++++\n");
-        let result = self.block_consensus.get_block(height).await;
+        let result = self.block_consensus.new_block(height).await;
         match result.as_ref() {
             Ok((block, _hash)) => {
                 // Use block here
@@ -174,7 +174,7 @@ where
             height
         );
         self.block_consensus
-            .commit(height, commit.content, commit.proof.block_hash)
+            .commit_block(height, commit.content, commit.proof.block_hash)
             .await?;
         Ok(Status {
             height: height + 1,

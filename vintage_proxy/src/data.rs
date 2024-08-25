@@ -18,7 +18,7 @@ pub(crate) struct Payload<TReqData> {
 
 pub(crate) type EntitiesPayload = Payload<Vec<(EntityId, EntityHash)>>;
 
-pub fn payload_json(req_id: &ReqId, req_data: impl Serialize) -> serde_json::Value {
+pub(crate) fn payload_json(req_id: &ReqId, req_data: impl Serialize) -> serde_json::Value {
     json!({
         "reqid": req_id,
         "reqdata": req_data,
