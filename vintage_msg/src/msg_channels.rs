@@ -1,41 +1,41 @@
-use crate::{BlockChainMsg, NetworkMsg, OverlordMsgBlock, ProxyMsg};
+use crate::{MsgToBlockChain, MsgToNetwork, MsgToProxy, OverlordMsgBlock};
 use tokio::sync::mpsc;
 
 pub struct ProxyMsgChannels {
     // receiver
-    pub msg_receiver: mpsc::Receiver<ProxyMsg>,
+    pub msg_receiver: mpsc::Receiver<MsgToProxy>,
     // sender
-    pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+    pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>, // -> blockchain
 }
 
 pub struct BlockChainMsgChannels {
     // receiver
-    pub msg_receiver: mpsc::Receiver<BlockChainMsg>,
+    pub msg_receiver: mpsc::Receiver<MsgToBlockChain>,
     // sender
-    pub proxy_msg_sender: mpsc::Sender<ProxyMsg>, // -> proxy
-    pub network_msg_sender: mpsc::Sender<NetworkMsg>, // -> network
+    pub proxy_msg_sender: mpsc::Sender<MsgToProxy>, // -> proxy
+    pub network_msg_sender: mpsc::Sender<MsgToNetwork>, // -> network
 }
 
 pub struct ConsensusMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<OverlordMsgBlock>,
     // sender
-    pub network_msg_sender: mpsc::Sender<NetworkMsg>, // -> blockchain
+    pub network_msg_sender: mpsc::Sender<MsgToNetwork>, // -> blockchain
     pub consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
 }
 
 pub struct NetworkMsgChannels {
     // receiver
-    pub msg_receiver: mpsc::Receiver<NetworkMsg>,
+    pub msg_receiver: mpsc::Receiver<MsgToNetwork>,
     // sender
-    pub blockchain_msg_sender: mpsc::Sender<BlockChainMsg>, // -> blockchain
+    pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>, // -> blockchain
 }
 
 pub fn msg_channels() -> (
-    mpsc::Sender<ProxyMsg>,
-    mpsc::Sender<BlockChainMsg>,
+    mpsc::Sender<MsgToProxy>,
+    mpsc::Sender<MsgToBlockChain>,
     mpsc::Sender<OverlordMsgBlock>,
-    mpsc::Sender<NetworkMsg>,
+    mpsc::Sender<MsgToNetwork>,
     ProxyMsgChannels,
     BlockChainMsgChannels,
     ConsensusMsgChannels,
@@ -44,10 +44,10 @@ pub fn msg_channels() -> (
     // The maximum number of permits which a semaphore can hold.
     const BUFFER: usize = usize::MAX >> 3;
 
-    let (proxy_msg_sender, proxy_msg_receiver) = mpsc::channel::<ProxyMsg>(BUFFER);
-    let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<BlockChainMsg>(BUFFER);
+    let (proxy_msg_sender, proxy_msg_receiver) = mpsc::channel::<MsgToProxy>(BUFFER);
+    let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<MsgToBlockChain>(BUFFER);
     let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<OverlordMsgBlock>(BUFFER);
-    let (network_msg_sender, network_msg_receiver) = mpsc::channel::<NetworkMsg>(BUFFER);
+    let (network_msg_sender, network_msg_receiver) = mpsc::channel::<MsgToNetwork>(BUFFER);
 
     // channels
     (

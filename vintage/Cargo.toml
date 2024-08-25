@@ -12,8 +12,9 @@ env_logger = { version = "0.11.3" }
 log = { version = "0.4.21" }
 rand = { version = "0.8.5" }
 serde = { version = "1.0.203", features = ["derive"] }
+serde_yaml = { version = "0.9" }
+serde_json = { version = "1.0.117" }
 tokio = { version = "1.38.0" }
-serde_yaml = "0.9"
 # vintage
 vintage_proxy = { path = "../vintage_proxy" }
 vintage_blockchain = { path = "../vintage_blockchain" }

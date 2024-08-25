@@ -4,16 +4,16 @@ use redis::aio::Connection;
 use redis::AsyncCommands;
 use serde_json::json;
 use tokio::sync::mpsc;
-use vintage_msg::{ActEvent, ProxyMsg, UpdateEntityEvent};
+use vintage_msg::{ActEvent, MsgToProxy, UpdateEntityEvent};
 use vintage_utils::{Service, Timestamp};
 
 pub struct ProxyOutboundService {
     redis_conn: Connection,
-    msg_receiver: mpsc::Receiver<ProxyMsg>,
+    msg_receiver: mpsc::Receiver<MsgToProxy>,
 }
 
 impl ProxyOutboundService {
-    pub(crate) fn new(redis_conn: Connection, msg_receiver: mpsc::Receiver<ProxyMsg>) -> Self {
+    pub(crate) fn new(redis_conn: Connection, msg_receiver: mpsc::Receiver<MsgToProxy>) -> Self {
         Self {
             redis_conn,
             msg_receiver,
@@ -30,7 +30,7 @@ impl Service for ProxyOutboundService {
         loop {
             match self.msg_receiver.recv().await {
                 Some(block_persisted) => match block_persisted {
-                    ProxyMsg::BlockEvent(event) => {
+                    MsgToProxy::BlockEvent(event) => {
                         for ue_event in event.ue_events {
                             self.on_ue_event(ue_event).await
                         }
@@ -51,7 +51,7 @@ impl ProxyOutboundService {
     async fn on_act_event(&mut self, timestamp: Timestamp, event: ActEvent) {
         let ext = json!({
             "time": timestamp,
-            "nonce": event.nonce,
+            "nonce": event.act_number,
             "randomvec": event.random,
         });
 

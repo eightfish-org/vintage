@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use vintage_msg::Block;
-use vintage_msg::NetworkMsg;
+use vintage_msg::MsgToNetwork;
 use vintage_network::config::NodeConfig;
 
 lazy_static! {
@@ -99,7 +99,7 @@ impl Crypto for MockCrypto {
 struct ConsensusEngine<BC> {
     block_consensus: BC,
     peer_list: Vec<Node>,
-    outbound: mpsc::Sender<NetworkMsg>,
+    outbound: mpsc::Sender<MsgToNetwork>,
     config: NodeConfig,
 }
 
@@ -107,7 +107,7 @@ impl<BC> ConsensusEngine<BC> {
     fn new(
         block_consensus: BC,
         peer_list: Vec<Node>,
-        outbound: mpsc::Sender<NetworkMsg>,
+        outbound: mpsc::Sender<MsgToNetwork>,
         config: NodeConfig,
     ) -> Self {
         Self {
@@ -198,7 +198,7 @@ where
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
         //log::info!("==broadcast_to_other");
-        let result = self.outbound.send(NetworkMsg::ConsensusMsg(words)).await;
+        let result = self.outbound.send(MsgToNetwork::ConsensusMsg(words)).await;
         Ok(())
     }
 
@@ -211,7 +211,7 @@ where
         //Skip for now
         let result = self
             .outbound
-            .send(NetworkMsg::ConsensusMsgRelay((name, words)))
+            .send(MsgToNetwork::ConsensusMsgRelay((name, words)))
             .await;
         Ok(())
     }
@@ -246,7 +246,7 @@ where
 {
     pub fn new(
         config: &NodeConfig,
-        outbound: mpsc::Sender<NetworkMsg>,
+        outbound: mpsc::Sender<MsgToNetwork>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
         block_consensus: BC,
         block_height: u64,

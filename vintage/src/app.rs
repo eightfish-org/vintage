@@ -1,12 +1,12 @@
 use tokio::task::JoinHandle;
-use vintage_blockchain::{BlockChain, BlockChainApiImpl, BlockChainConfig, TxService};
+use vintage_blockchain::{BlockChain, BlockChainApiImpl, BlockChainConfig, BlockChainService};
 use vintage_msg::{BlockChainMsgChannels, ProxyMsgChannels};
 use vintage_proxy::{Proxy, ProxyConfig};
 use vintage_utils::start_service;
 
 #[allow(dead_code)]
 pub struct Vintage {
-    tx_service: TxService,
+    tx_service: BlockChainService,
     proxy: Proxy<BlockChainApiImpl>,
 }
 

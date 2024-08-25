@@ -4,19 +4,19 @@ use futures::StreamExt;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, BlockChainApi, BlockChainMsg, Entity, UpdateEntityTx};
+use vintage_msg::{Act, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
 
 pub struct ProxyInboundService<TApi> {
     redis_conn: Connection,
-    blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
+    blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
     blockchain_api: TApi,
 }
 
 impl<TApi> ProxyInboundService<TApi> {
     pub(crate) fn new(
         redis_conn: Connection,
-        blockchain_msg_sender: mpsc::Sender<BlockChainMsg>,
+        blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
         blockchain_api: TApi,
     ) -> Self {
         Self {
@@ -71,11 +71,12 @@ where
     TApi: BlockChainApi,
 {
     fn post(&self, object: InputOutputObject) {
-        self.blockchain_msg_sender.send_msg(BlockChainMsg::Act(Act {
-            kind: object.action,
-            model: object.model,
-            data: object.data,
-        }))
+        self.blockchain_msg_sender
+            .send_msg(MsgToBlockChain::Act(Act {
+                kind: object.action,
+                model: object.model,
+                data: object.data,
+            }));
     }
 
     fn update_index(&self, object: InputOutputObject) {
@@ -87,7 +88,7 @@ where
             .collect();
 
         self.blockchain_msg_sender
-            .send_msg(BlockChainMsg::UpdateEntityTx(UpdateEntityTx {
+            .send_msg(MsgToBlockChain::UpdateEntityTx(UpdateEntityTx {
                 model: object.model,
                 req_id: payload.reqid,
                 entities,

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use vintage_msg::NetworkMsg;
+use vintage_msg::MsgToNetwork;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BlockchainMessage {
     Handshake(SocketAddr),
     NewTransaction(Transaction),
     RawMessage(String), // Add this line
-    NetworkMsg(NetworkMsg),
+    MsgToNetwork(MsgToNetwork),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

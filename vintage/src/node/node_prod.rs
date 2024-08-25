@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use vintage_blockchain::BlockChain;
 use vintage_consensus::{BlockConsensus, OverlordMsg, Validator};
-use vintage_msg::{Block, NetworkMsg, NetworkMsgChannels, OverlordMsgBlock};
+use vintage_msg::{Block, MsgToNetwork, NetworkMsgChannels, OverlordMsgBlock};
 use vintage_network::config::NodeConfig;
 use vintage_network::Node;
 use vintage_utils::Service;
@@ -20,7 +20,7 @@ impl VintageNode {
         config: NodeConfig,
         network_chn: NetworkMsgChannels,
         consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
-        outbound: mpsc::Sender<NetworkMsg>,
+        outbound: mpsc::Sender<MsgToNetwork>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our blockchain or database.
         block_consensus: BlockChain,
     ) -> anyhow::Result<Self> {

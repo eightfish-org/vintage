@@ -10,7 +10,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 use tokio_util::codec::Framed;
-use vintage_msg::{BlockChainMsg, NetworkMsg, NetworkMsgChannels, OverlordMsgBlock};
+use vintage_msg::{MsgToBlockChain, MsgToNetwork, NetworkMsgChannels, OverlordMsgBlock};
 pub mod codec;
 pub mod config;
 pub mod messages;
@@ -23,8 +23,8 @@ pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 pub struct Node {
     address: SocketAddr,
     peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
-    outgoing_messages: mpsc::Receiver<NetworkMsg>,
-    incoming_messages: mpsc::Sender<BlockChainMsg>,
+    outgoing_messages: mpsc::Receiver<MsgToNetwork>,
+    incoming_messages: mpsc::Sender<MsgToBlockChain>,
     consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>,
     peer_manager: Arc<PeerManager>,
 }
@@ -130,13 +130,13 @@ impl Node {
                 Some(message) = self.outgoing_messages.recv() => {
                     //get a broad case message from application
                     match &message {
-                        NetworkMsg::ConsensusMsgRelay((addr_bytes, _)) => {
+                        MsgToNetwork::ConsensusMsgRelay((addr_bytes, _)) => {
                             let addr = bytes_to_socket_addr(&addr_bytes);
                             match addr {
                                 Ok(recovered_addr) => {
                                     let network_message = NetworkMessage{
                                         sender: self.address,
-                                        content: BlockchainMessage::NetworkMsg(message),
+                                        content: BlockchainMessage::MsgToNetwork(message),
                                         receiver: Some(recovered_addr)
                                     };
                                     self.handle_message(network_message).await?;
@@ -148,7 +148,7 @@ impl Node {
                         _ => {
                             let network_message = NetworkMessage{
                                 sender: self.address,
-                                content: BlockchainMessage::NetworkMsg(message),
+                                content: BlockchainMessage::MsgToNetwork(message),
                                 receiver:None
                             };
                             self.handle_message(network_message).await?;
@@ -215,7 +215,7 @@ impl Node {
         addr: SocketAddr,
         listening_addr: SocketAddr,
         peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
-        incoming_messages: mpsc::Sender<BlockChainMsg>,
+        incoming_messages: mpsc::Sender<MsgToBlockChain>,
         consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>,
     ) -> Result<(), BoxedError> {
         let (tx, mut rx) = mpsc::channel::<NetworkMessage>(100);
@@ -256,20 +256,20 @@ impl Node {
                                 peer_listening_addr.unwrap(),
                                 formatted
                             );
-                            if let BlockchainMessage::NetworkMsg(msg) = &message.content {
-                                if let NetworkMsg::BroadcastAct(act) = msg {
-                                    let blockchain_msg = BlockChainMsg::ActFromNetwork(act.clone());
-                                    // Use blockchain_msg here
-                                    log::info!("Send BlockChainMsg::Act to vintage_blockchain");
-                                    if let Err(e) = incoming_messages.send(blockchain_msg).await {
-                                        eprintln!(
-                                            "Failed to send message to application layer: {}",
-                                            e
-                                        );
-                                        break;
-                                    }
+                            if let BlockchainMessage::MsgToNetwork(msg) = &message.content {
+                                if let MsgToNetwork::BlockChainMsg((node_id, content)) = msg {
+                                    // let blockchain_msg = MsgToBlockChain::NetworkMsg(act.clone());
+                                    // // Use blockchain_msg here
+                                    // log::info!("Send BlockChainMsg::Act to vintage_blockchain");
+                                    // if let Err(e) = incoming_messages.send(blockchain_msg).await {
+                                    //     eprintln!(
+                                    //         "Failed to send message to application layer: {}",
+                                    //         e
+                                    //     );
+                                    //     break;
+                                    // }
                                 }
-                                if let NetworkMsg::ConsensusMsg(consensus_msg) = msg {
+                                if let MsgToNetwork::ConsensusMsg(consensus_msg) = msg {
                                     log::info!("Send ConsensusMsg to vintage_consensus");
                                     //let consensus_msg = OverlordMsg
                                     if let Err(e) = consensus_incoming_messages
@@ -283,7 +283,7 @@ impl Node {
                                         break;
                                     }
                                 }
-                                if let NetworkMsg::ConsensusMsgRelay((_, consensus_msg)) = msg {
+                                if let MsgToNetwork::ConsensusMsgRelay((_, consensus_msg)) = msg {
                                     log::info!("Send ConsensusMsgRelay to vintage_consensus");
                                     if let Err(e) = consensus_incoming_messages
                                         .send(consensus_msg.clone())
@@ -427,7 +427,7 @@ async fn reconnect_to_peer(
     listening_addr: SocketAddr,
     peer: &PeerInfo,
     peers: Arc<Mutex<HashMap<SocketAddr, mpsc::Sender<NetworkMessage>>>>,
-    incoming_messages: mpsc::Sender<BlockChainMsg>,
+    incoming_messages: mpsc::Sender<MsgToBlockChain>,
     consensus_incoming_messages: mpsc::Sender<OverlordMsgBlock>,
 ) -> Result<(), BoxedError> {
     let socket = tokio::net::TcpStream::connect(peer.address).await?;

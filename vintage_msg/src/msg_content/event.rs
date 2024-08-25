@@ -9,7 +9,7 @@ pub struct BlockEvent {
 
 pub struct ActEvent {
     pub act: Act,
-    pub nonce: u64,
+    pub act_number: u64,
     pub random: Hashed,
 }
 

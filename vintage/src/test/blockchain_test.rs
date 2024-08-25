@@ -1,26 +1,29 @@
 use rand::{random, thread_rng, Rng};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, BlockChainMsg};
+use vintage_msg::{Act, MsgToBlockChain};
 use vintage_utils::SendMsg;
 
-pub(super) async fn send_raw_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
+pub(super) async fn send_raw_act_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>) {
     loop {
         let millis = thread_rng().gen_range(2000..=3000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::Act(random_act()));
+        sender.send_msg(MsgToBlockChain::Act(random_act()));
     }
 }
 
-pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<BlockChainMsg>) {
+pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>) {
     loop {
         let millis = thread_rng().gen_range(500..=1000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(BlockChainMsg::ActFromNetwork(random_act()));
+        sender.send_msg(MsgToBlockChain::NetworkMsg((
+            "NodeDev".to_owned(),
+            serde_json::to_vec(&random_act()).unwrap(),
+        )));
     }
 }
 
-pub(super) async fn send_block_to_blockchain(_sender: mpsc::Sender<BlockChainMsg>) {
+pub(super) async fn send_block_to_blockchain(_sender: mpsc::Sender<MsgToBlockChain>) {
     let mut _height_block = 1;
 
     loop {

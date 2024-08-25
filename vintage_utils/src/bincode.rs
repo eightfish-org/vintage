@@ -7,6 +7,7 @@ use serde::Serialize;
 
 pub trait BincodeSerialize {
     fn bincode_serialize(&self) -> Result<Vec<u8>, EncodeError>;
+    fn bincode_serialize_into_slice(&self, slice: &mut [u8]) -> Result<usize, EncodeError>;
 }
 
 pub trait BincodeDeserialize: Sized {
@@ -19,6 +20,9 @@ where
 {
     fn bincode_serialize(&self) -> Result<Vec<u8>, EncodeError> {
         bincode::serde::encode_to_vec(self, standard())
+    }
+    fn bincode_serialize_into_slice(&self, slice: &mut [u8]) -> Result<usize, EncodeError> {
+        bincode::serde::encode_into_slice(self, slice, standard())
     }
 }
 

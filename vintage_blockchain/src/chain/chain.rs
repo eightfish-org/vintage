@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use vintage_consensus::BlockConsensus;
 use vintage_msg::{
-    Act, ActEvent, Block, BlockEvent, BlockHash, BlockHeight, CalcHash, Hash, Hashed, ProxyMsg,
+    Act, ActEvent, Block, BlockEvent, BlockHash, BlockHeight, CalcHash, Hash, Hashed, MsgToProxy,
     UpdateEntityEvent, UpdateEntityTx,
 };
 use vintage_utils::{current_timestamp, SendMsg, Timestamp};
@@ -19,14 +19,14 @@ use vintage_utils::{current_timestamp, SendMsg, Timestamp};
 pub struct BlockChain {
     db: BlockChainDb,
     tx_pool: Arc<TxPool>,
-    proxy_msg_sender: mpsc::Sender<ProxyMsg>,
+    proxy_msg_sender: mpsc::Sender<MsgToProxy>,
 }
 
 impl BlockChain {
     pub(crate) fn new(
         db: BlockChainDb,
         tx_pool: Arc<TxPool>,
-        proxy_msg_sender: mpsc::Sender<ProxyMsg>,
+        proxy_msg_sender: mpsc::Sender<MsgToProxy>,
     ) -> Self {
         Self {
             db,
@@ -158,7 +158,7 @@ impl BlockConsensus<Block> for BlockChain {
             self.tx_pool.guard().remove_acts(&act_ids);
         }
         self.proxy_msg_sender
-            .send_msg(ProxyMsg::BlockEvent(Self::block_event(
+            .send_msg(MsgToProxy::BlockEvent(Self::block_event(
                 timestamp, total_acts, acts, ue_txs,
             )));
 
@@ -249,14 +249,14 @@ impl BlockChain {
         acts: Vec<Act>,
         ue_txs: Vec<UpdateEntityTx>,
     ) -> BlockEvent {
-        let mut nonce = total_acts - acts.len() as u64;
+        let mut act_number = total_acts - acts.len() as u64;
         let mut act_events = Vec::new();
         for act in acts {
-            nonce += 1;
+            act_number += 1;
             act_events.push(ActEvent {
                 act,
-                nonce,
-                random: Self::random(nonce),
+                act_number,
+                random: Self::random(act_number),
             })
         }
 
