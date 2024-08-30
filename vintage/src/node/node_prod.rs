@@ -6,6 +6,7 @@ use vintage_blockchain::BlockConsensusImpl;
 use vintage_consensus::{BlockConsensus, OverlordMsg, Validator};
 use vintage_msg::{Block, MsgToNetwork, NetworkMsgChannels, OverlordMsgBlock};
 use vintage_network::config::NodeConfig;
+use vintage_network::request::ArcNetworkRequestMgr;
 use vintage_network::Node;
 use vintage_utils::{Service, ServiceStarter};
 
@@ -23,13 +24,14 @@ impl VintageNode {
         outbound: mpsc::Sender<MsgToNetwork>,
         inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our blockchain or database.
         block_consensus: BlockConsensusImpl,
+        request_mgr: ArcNetworkRequestMgr,
     ) -> anyhow::Result<ServiceStarter<Self>> {
         let block_height = block_consensus
             .get_block_height()
             .await
             .map_err(|err| anyhow!("get_block_height err: {:?}", err))?;
 
-        let node = Node::create(&config, network_chn, consensus_msg_sender).await?;
+        let node = Node::create(&config, network_chn, consensus_msg_sender, request_mgr).await?;
         let validator = Validator::new(
             &config,
             outbound,

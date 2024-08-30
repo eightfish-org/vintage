@@ -1,12 +1,12 @@
 use crate::db::BlockChainDb;
-use crate::network::{msg_decode, MsgDecoded, MsgToNetworkSender};
+use crate::network::{BroadcastMsg, MsgToNetworkSender, ReqBlock, ReqBlockHash, RequestMsg};
 use crate::tx::{TxId, TxPool};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, CalcHash, MsgToBlockChain, NodeId, UpdateEntityTx};
-use vintage_utils::Service;
+use vintage_msg::{Act, CalcHash, MsgToBlockChain, NetworkRequestId, UpdateEntityTx};
+use vintage_utils::{BincodeDeserialize, Service};
 
 pub struct BlockChainService {
     db: BlockChainDb,
@@ -40,9 +40,14 @@ impl Service for BlockChainService {
         loop {
             match self.msg_receiver.recv().await {
                 Some(msg) => match msg {
-                    MsgToBlockChain::NetworkMsg((node_id, msg_encoded)) => {
-                        if let Err(err) = self.network_msg_handler(node_id, msg_encoded).await {
-                            log::error!("Failed to handle NetworkMsg: {:?}", err);
+                    MsgToBlockChain::Request(request_id, request_encoded) => {
+                        if let Err(err) = self.request_handler(request_id, request_encoded).await {
+                            log::error!("Failed to handle Request: {:?}", err);
+                        }
+                    }
+                    MsgToBlockChain::Broadcast(msg_encoded) => {
+                        if let Err(err) = self.broadcast_handler(msg_encoded).await {
+                            log::error!("Failed to handle Broadcast: {:?}", err);
                         }
                     }
                     MsgToBlockChain::Act(act) => {
@@ -66,31 +71,76 @@ impl Service for BlockChainService {
 
 // network
 impl BlockChainService {
-    async fn network_msg_handler(
+    async fn request_handler(
         &self,
-        _node_id: NodeId,
-        msg_encoded: Vec<u8>,
+        request_id: NetworkRequestId,
+        request_encoded: Vec<u8>,
     ) -> anyhow::Result<()> {
-        let msg_decoded = msg_decode(&msg_encoded)?;
-        match msg_decoded {
-            MsgDecoded::Act(act) => {
-                let act_id = self.put_act_to_pool(act).await?;
-                log::info!("act from network: {}", act_id);
+        match RequestMsg::bincode_deserialize(&request_encoded) {
+            Ok((msg, _bytes_read)) => match msg {
+                RequestMsg::ReqBlockHash(req) => {
+                    self.on_request_block_hash(request_id, req).await?;
+                }
+                RequestMsg::ReqBlock(req) => {
+                    self.on_request_block(request_id, req).await?;
+                }
+            },
+            Err(err) => {
+                log::error!("Failed to decode RequestMsg: {:?}", err);
+            }
+        }
+        Ok(())
+    }
+
+    async fn on_request_block_hash(
+        &self,
+        request_id: NetworkRequestId,
+        req: ReqBlockHash,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn on_request_block(
+        &self,
+        request_id: NetworkRequestId,
+        req: ReqBlock,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn broadcast_handler(&self, msg_encoded: Vec<u8>) -> anyhow::Result<()> {
+        match BroadcastMsg::bincode_deserialize(&msg_encoded) {
+            Ok((msg, _bytes_read)) => match msg {
+                BroadcastMsg::Act(act) => {
+                    let act_id = self.put_act_to_pool(act).await?;
+                    log::info!("act from network: {}", act_id);
+                }
+            },
+            Err(err) => {
+                log::error!("Failed to decode BroadcastMsg: {:?}", err);
             }
         }
         Ok(())
     }
 }
 
-// act
+// proxy
 impl BlockChainService {
+    async fn ue_tx_handler(&self, tx: UpdateEntityTx) -> anyhow::Result<()> {
+        let tx_id = tx.calc_hash();
+        self.db.insert_ue_tx_to_pool(tx_id, tx).await
+    }
+
     async fn act_handler(&self, act: Act) -> anyhow::Result<()> {
         let act_id = self.put_act_to_pool(act.clone()).await?;
         log::info!("act from proxy: {}", act_id);
-        self.network_msg_sender.broadcast_msg(&act);
+        self.network_msg_sender
+            .broadcast_msg(&BroadcastMsg::Act(act));
         Ok(())
     }
+}
 
+impl BlockChainService {
     async fn put_act_to_pool(&self, act: Act) -> anyhow::Result<TxId> {
         let act_id = act.calc_hash();
         {
@@ -103,13 +153,5 @@ impl BlockChainService {
             self.tx_pool.guard().insert_act(act_id.clone(), act);
         }
         Ok(act_id)
-    }
-}
-
-// update entity
-impl BlockChainService {
-    async fn ue_tx_handler(&self, tx: UpdateEntityTx) -> anyhow::Result<()> {
-        let tx_id = tx.calc_hash();
-        self.db.insert_ue_tx_to_pool(tx_id, tx).await
     }
 }

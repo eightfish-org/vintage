@@ -1,9 +1,9 @@
-use crate::network::msg_codec::{msg_encode, MsgKind};
-use serde::Serialize;
+use crate::network::msgs::BroadcastMsg;
 use tokio::sync::mpsc;
-use vintage_msg::{MsgToNetwork, NodeId};
-use vintage_utils::SendMsg;
+use vintage_msg::{MsgToNetwork, NetworkMsgHandler};
+use vintage_utils::{BincodeSerialize, SendMsg};
 
+#[derive(Clone)]
 pub(crate) struct MsgToNetworkSender {
     sender: mpsc::Sender<MsgToNetwork>,
 }
@@ -13,30 +13,12 @@ impl MsgToNetworkSender {
         Self { sender }
     }
 
-    pub fn broadcast_msg<TMsg>(&self, msg: &TMsg) -> bool
-    where
-        TMsg: MsgKind + Serialize,
-    {
-        self.send(None, msg)
-    }
-
-    pub fn send_msg<TMsg>(&self, node_id: NodeId, msg: &TMsg) -> bool
-    where
-        TMsg: MsgKind + Serialize,
-    {
-        self.send(Some(node_id), msg)
-    }
-}
-
-impl MsgToNetworkSender {
-    fn send<TMsg>(&self, node_id: Option<NodeId>, msg: &TMsg) -> bool
-    where
-        TMsg: MsgKind + Serialize,
-    {
-        match msg_encode(msg) {
-            Ok(msg_encoded) => self
-                .sender
-                .send_msg(MsgToNetwork::BlockChainMsg((node_id, msg_encoded))),
+    pub fn broadcast_msg(&self, msg: &BroadcastMsg) -> bool {
+        match msg.bincode_serialize() {
+            Ok(msg_encoded) => self.sender.send_msg(MsgToNetwork::Broadcast(
+                NetworkMsgHandler::BlockChain,
+                msg_encoded,
+            )),
             Err(err) => {
                 log::error!("failed to encode msg: {:?}", err);
                 false

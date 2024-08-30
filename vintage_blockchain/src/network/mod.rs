@@ -1,5 +1,5 @@
-mod msg_codec;
 mod msg_sender;
+mod msgs;
 
 pub(crate) use self::msg_sender::*;
-pub(crate) use msg_codec::*;
+pub(crate) use self::msgs::*;

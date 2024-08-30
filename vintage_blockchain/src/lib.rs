@@ -19,6 +19,7 @@ pub(crate) use self::tx::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use vintage_msg::BlockChainMsgChannels;
+use vintage_network::client::NetworkClient;
 use vintage_utils::ServiceStarter;
 
 const ACT_POOL_CAPACITY: usize = 1000;
@@ -35,7 +36,9 @@ pub enum BlockChain {}
 impl BlockChain {
     pub async fn create(
         config: BlockChainConfig,
+        block_interval: u64,
         channels: BlockChainMsgChannels,
+        client: NetworkClient,
     ) -> anyhow::Result<(
         BlockConsensusImpl,
         BlockChainApiImpl,
@@ -45,28 +48,28 @@ impl BlockChain {
         let db_inner = create_db_inner(config.db_path).await?;
         let db = BlockChainDb::new(db_inner.clone());
         let tx_pool = Arc::new(TxPool::new(ACT_POOL_CAPACITY));
+        let network_msg_sender = MsgToNetworkSender::new(channels.network_msg_sender);
+        let proxy_msg_sender = MsgToProxySender::new(channels.proxy_msg_sender);
 
         let blockchain_core = Arc::new(tokio::sync::Mutex::new(BlockChainCore::new(
             db.clone(),
             tx_pool.clone(),
-            MsgToProxySender::new(channels.proxy_msg_sender),
+            proxy_msg_sender,
         )));
-
-        let block_consensus = BlockConsensusImpl::new(blockchain_core);
-        let blockchain_api = BlockChainApiImpl::new(db.clone());
-        let blockchain_service = ServiceStarter::new(BlockChainService::new(
-            db,
+        let block_sync_service =
+            BlockSyncService::new(block_interval, client, network_msg_sender.clone());
+        let blockchain_service = BlockChainService::new(
+            db.clone(),
             tx_pool,
             channels.msg_receiver,
-            MsgToNetworkSender::new(channels.network_msg_sender),
-        ));
-        let block_sync_service = ServiceStarter::new(BlockSyncService::new());
+            network_msg_sender,
+        );
 
         Ok((
-            block_consensus,
-            blockchain_api,
-            blockchain_service,
-            block_sync_service,
+            BlockConsensusImpl::new(blockchain_core.clone()),
+            BlockChainApiImpl::new(db),
+            ServiceStarter::new(blockchain_service),
+            ServiceStarter::new_with_input(block_sync_service, blockchain_core),
         ))
     }
 }

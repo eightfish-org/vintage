@@ -1,5 +1,6 @@
 use crate::{MsgToBlockChain, MsgToNetwork, MsgToProxy, OverlordMsgBlock};
 use tokio::sync::mpsc;
+use vintage_utils::MAX_MPSC_CHANNEL_SIZE;
 
 pub struct ProxyMsgChannels {
     // receiver
@@ -41,13 +42,13 @@ pub fn msg_channels() -> (
     ConsensusMsgChannels,
     NetworkMsgChannels,
 ) {
-    // The maximum number of permits which a semaphore can hold.
-    const BUFFER: usize = usize::MAX >> 3;
-
-    let (proxy_msg_sender, proxy_msg_receiver) = mpsc::channel::<MsgToProxy>(BUFFER);
-    let (blockchain_msg_sender, blockchain_msg_receiver) = mpsc::channel::<MsgToBlockChain>(BUFFER);
-    let (consensus_msg_sender, consensus_msg_receiver) = mpsc::channel::<OverlordMsgBlock>(BUFFER);
-    let (network_msg_sender, network_msg_receiver) = mpsc::channel::<MsgToNetwork>(BUFFER);
+    let (proxy_msg_sender, proxy_msg_receiver) = mpsc::channel::<MsgToProxy>(MAX_MPSC_CHANNEL_SIZE);
+    let (blockchain_msg_sender, blockchain_msg_receiver) =
+        mpsc::channel::<MsgToBlockChain>(MAX_MPSC_CHANNEL_SIZE);
+    let (consensus_msg_sender, consensus_msg_receiver) =
+        mpsc::channel::<OverlordMsgBlock>(MAX_MPSC_CHANNEL_SIZE);
+    let (network_msg_sender, network_msg_receiver) =
+        mpsc::channel::<MsgToNetwork>(MAX_MPSC_CHANNEL_SIZE);
 
     // channels
     (

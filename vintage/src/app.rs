@@ -4,6 +4,7 @@ use vintage_blockchain::{
     BlockSyncService,
 };
 use vintage_msg::{BlockChainMsgChannels, ProxyMsgChannels};
+use vintage_network::client::NetworkClient;
 use vintage_proxy::{Proxy, ProxyConfig, ProxyInboundService, ProxyOutboundService};
 use vintage_utils::ServiceStarter;
 
@@ -19,11 +20,13 @@ impl Vintage {
     pub async fn create(
         blockchain_config: BlockChainConfig,
         proxy_config: ProxyConfig,
+        block_interval: u64,
         blockchain_chn: BlockChainMsgChannels,
         proxy_chn: ProxyMsgChannels,
+        client: NetworkClient,
     ) -> anyhow::Result<(Self, BlockConsensusImpl)> {
         let (block_consensus, blockchain_api, blockchain_service, block_sync_service) =
-            BlockChain::create(blockchain_config, blockchain_chn).await?;
+            BlockChain::create(blockchain_config, block_interval, blockchain_chn, client).await?;
         let (proxy_inbound_service, proxy_outbound_service) =
             Proxy::create(proxy_config, proxy_chn, blockchain_api).await?;
 

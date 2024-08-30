@@ -12,23 +12,33 @@ use vintage_utils::{current_timestamp, Timestamp};
 
 pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
 
-pub(crate) struct BlockChainCore {
+pub struct BlockChainCore {
     db: BlockChainDb,
     tx_pool: Arc<TxPool>,
     proxy_msg_sender: MsgToProxySender,
+    last_commited_time: Timestamp,
 }
 
 impl BlockChainCore {
-    pub fn new(db: BlockChainDb, tx_pool: Arc<TxPool>, proxy_msg_sender: MsgToProxySender) -> Self {
+    pub(crate) fn new(
+        db: BlockChainDb,
+        tx_pool: Arc<TxPool>,
+        proxy_msg_sender: MsgToProxySender,
+    ) -> Self {
         Self {
             db,
             tx_pool,
             proxy_msg_sender,
+            last_commited_time: 0,
         }
     }
 }
 
 impl BlockChainCore {
+    pub fn get_last_commited_time(&self) -> Timestamp {
+        self.last_commited_time
+    }
+
     pub async fn get_block_height(&self) -> anyhow::Result<BlockHeight> {
         self.db.get_block_height().await
     }
@@ -135,6 +145,7 @@ impl BlockChainCore {
         );
 
         // after - commit block
+        self.last_commited_time = current_timestamp();
         {
             self.tx_pool.guard().remove_acts(&act_ids);
         }

@@ -21,8 +21,6 @@ lazy_static! {
     static ref HASHER_INST: HasherKeccak = HasherKeccak::new();
 }
 
-const SPEAKER_NUM: u8 = 10;
-
 struct MockWal {
     inner: Mutex<Option<Bytes>>,
 }
@@ -157,7 +155,7 @@ where
         //log::info!("++++++++++check_block+++++++++++");
         let result = self.block_consensus.check_block(height, speech, hash).await;
         match result.as_ref() {
-            Err(e) => log::info!("check_block error"),
+            Err(_e) => log::info!("check_block error"),
             _ => log::info!("check_block good"),
         }
         result
@@ -198,7 +196,10 @@ where
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
         //log::info!("==broadcast_to_other");
-        let result = self.outbound.send(MsgToNetwork::ConsensusMsg(words)).await;
+        let _result = self
+            .outbound
+            .send(MsgToNetwork::ConsensusBroadcast(words))
+            .await;
         Ok(())
     }
 
@@ -209,9 +210,9 @@ where
         words: OverlordMsg<Block>,
     ) -> Result<(), Box<dyn Error + Send>> {
         //Skip for now
-        let result = self
+        let _result = self
             .outbound
-            .send(MsgToNetwork::ConsensusMsgRelay((name, words)))
+            .send(MsgToNetwork::ConsensusMsgRelay(name, words))
             .await;
         Ok(())
     }
@@ -236,7 +237,7 @@ where
 {
     overlord: Arc<Overlord<Block, ConsensusEngine<BC>, MockCrypto, MockWal>>,
     handler: OverlordHandler<Block>,
-    consensus_engine: Arc<ConsensusEngine<BC>>,
+    _consensus_engine: Arc<ConsensusEngine<BC>>,
     inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>,
 }
 
@@ -287,7 +288,7 @@ where
         Self {
             overlord: Arc::new(overlord),
             handler: overlord_handler,
-            consensus_engine,
+            _consensus_engine: consensus_engine,
             inbound: tokio::sync::Mutex::new(inbound),
         }
     }

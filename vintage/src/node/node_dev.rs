@@ -14,8 +14,8 @@ pub struct VintageNodeDev {
 
 impl VintageNodeDev {
     pub async fn create(
-        block_consensus: BlockConsensusImpl,
         block_interval: u64,
+        block_consensus: BlockConsensusImpl,
     ) -> anyhow::Result<ServiceStarter<Self>> {
         let block_height = block_consensus
             .get_block_height()
