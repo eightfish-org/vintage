@@ -12,16 +12,15 @@ use overlord::{Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use anyhow::anyhow;
 use tokio::sync::mpsc;
-use vintage_msg::Block;
+use vintage_msg::{Block, ConsensusMsgChannels, OverlordMsgBlock};
 use vintage_msg::MsgToNetwork;
 use vintage_network::config::NodeConfig;
 
 lazy_static! {
     static ref HASHER_INST: HasherKeccak = HasherKeccak::new();
 }
-
-const SPEAKER_NUM: u8 = 10;
 
 struct MockWal {
     inner: Mutex<Option<Bytes>>,
@@ -157,7 +156,7 @@ where
         //log::info!("++++++++++check_block+++++++++++");
         let result = self.block_consensus.check_block(height, speech, hash).await;
         match result.as_ref() {
-            Err(e) => log::info!("check_block error"),
+            Err(_e) => log::info!("check_block error"),
             _ => log::info!("check_block good"),
         }
         result
@@ -195,10 +194,13 @@ where
     async fn broadcast_to_other(
         &self,
         _ctx: Context,
-        words: OverlordMsg<Block>,
+        words: OverlordMsgBlock,
     ) -> Result<(), Box<dyn Error + Send>> {
         //log::info!("==broadcast_to_other");
-        let result = self.outbound.send(MsgToNetwork::ConsensusMsg(words)).await;
+        let _result = self
+            .outbound
+            .send(MsgToNetwork::ConsensusBroadcast(words))
+            .await;
         Ok(())
     }
 
@@ -206,12 +208,12 @@ where
         &self,
         _ctx: Context,
         name: Bytes,
-        words: OverlordMsg<Block>,
+        words: OverlordMsgBlock,
     ) -> Result<(), Box<dyn Error + Send>> {
         //Skip for now
-        let result = self
+        let _result = self
             .outbound
-            .send(MsgToNetwork::ConsensusMsgRelay((name, words)))
+            .send(MsgToNetwork::ConsensusMsgRelay(name, words))
             .await;
         Ok(())
     }
@@ -236,32 +238,38 @@ where
 {
     overlord: Arc<Overlord<Block, ConsensusEngine<BC>, MockCrypto, MockWal>>,
     handler: OverlordHandler<Block>,
-    consensus_engine: Arc<ConsensusEngine<BC>>,
-    inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>,
+    _consensus_engine: Arc<ConsensusEngine<BC>>,
+    inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsgBlock>>,
+    config: NodeConfig,
+    block_synced_receiver: tokio::sync::Mutex<mpsc::Receiver<u64>>,
 }
 
 impl<BC> Validator<BC>
 where
     BC: BlockConsensus<Block> + Send + Sync + 'static,
 {
-    pub fn new(
+    pub async fn create(
         config: &NodeConfig,
-        outbound: mpsc::Sender<MsgToNetwork>,
-        inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
+        consensus_chn: ConsensusMsgChannels,
         block_consensus: BC,
-        block_height: u64,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
+        let block_height = block_consensus
+            .get_block_height()
+            .await
+            .map_err(|err| anyhow!("get_block_height err: {:?}", err))?;
+
         log::info!(
             "Validator Created. start with block_height: {}",
-            block_height
+            block_height + 1
         );
+
         let name = socket_addr_to_bytes(&config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
         let consensus_engine = Arc::new(ConsensusEngine::<BC>::new(
             block_consensus,
             node_list.clone(),
-            outbound,
+            consensus_chn.network_msg_sender,
             config.clone(),
         ));
         let overlord = Overlord::new(
@@ -276,7 +284,7 @@ where
             .send_msg(
                 Context::new(),
                 OverlordMsg::RichStatus(Status {
-                    height: block_height,
+                    height: block_height + 1,
                     interval: Some(config.block_interval),
                     timer_config: None,
                     authority_list: node_list,
@@ -284,12 +292,14 @@ where
             )
             .unwrap();
 
-        Self {
+        Ok(Self {
             overlord: Arc::new(overlord),
             handler: overlord_handler,
-            consensus_engine,
-            inbound: tokio::sync::Mutex::new(inbound),
-        }
+            _consensus_engine: consensus_engine,
+            inbound: tokio::sync::Mutex::new(consensus_chn.msg_receiver),
+            config: config.clone(),
+            block_synced_receiver: tokio::sync::Mutex::new(consensus_chn.block_synced_receiver),
+        })
     }
 
     pub async fn run(self: Arc<Self>, config: NodeConfig) -> Result<(), Box<dyn Error + Send>> {
@@ -297,7 +307,7 @@ where
         let interval = config.block_interval;
         let timer_config = timer_config();
         let node_list = build_node_list(&config);
-        let handler = self.handler.clone();
+        let handler: OverlordHandler<Block> = self.handler.clone();
         let s: Arc<Validator<BC>> = self.clone();
         let spawned_task = tokio::spawn(async move {
             log::info!("Validator Started.");
@@ -339,13 +349,51 @@ where
             }
         });
 
+        let s: Arc<Validator<BC>> = self.clone();
+        let block_sync_task = tokio::spawn(async move {
+            log::info!("===Handling Sync Block Completed Started.");
+            loop {
+                let msg = {
+                    let mut receiver = s.block_synced_receiver.lock().await;
+                    receiver.recv().await
+                };
+                match msg {
+                    Some(msg) => {
+                        log::info!("====Sync Block receive new height: {}", msg);
+                        s.set_height(msg)
+                    },
+                    None => {
+                        eprintln!("receive nothing");
+                    }
+                }
+            }
+        });
+
         self.clone()
-            .overlord
-            .run(0, interval, node_list, timer_config)
-            .await
-            .unwrap();
+        .overlord
+        .run(0, interval, node_list, timer_config)
+        .await
+        .unwrap();
+    
         spawned_task.await.unwrap();
+        block_sync_task.await.unwrap();
         Ok(())
+    }
+
+    pub fn set_height(&self, block_height: u64) {
+        let overlord_handler = self.overlord.get_handler();
+        let node_list = build_node_list(&self.config);
+        overlord_handler
+            .send_msg(
+                Context::new(),
+                OverlordMsg::RichStatus(Status {
+                    height: block_height + 1,
+                    interval: Some(self.config.block_interval),
+                    timer_config: None,
+                    authority_list: node_list,
+                }),
+            )
+            .unwrap();
     }
 }
 
@@ -381,6 +429,6 @@ fn build_node_list(config: &NodeConfig) -> Vec<Node> {
             vote_weight: peer.vote_weight,
         });
     }
-
+    log::info!("build_node_list: {:?}", nodes);
     nodes
 }

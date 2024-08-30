@@ -49,6 +49,35 @@ impl BlockChainDbInner {
         table.get_block(height)
     }
 
+    pub fn get_network_block(&self, height: BlockHeight) -> anyhow::Result<Block> {
+        let db_read = self.database.begin_read()?;
+        let block = {
+            let table = BlockTableR::open_table(&db_read)?;
+            table.get_block(height)?
+        };
+        let mut acts = Vec::new();
+        {
+            let table = ActTableR::open_table(&db_read)?;
+            for act_id in block.act_ids {
+                let act = table.get_tx(&act_id)?;
+                acts.push(act);
+            }
+        }
+        let mut ue_txs = Vec::new();
+        {
+            let table = UpdateEntityTxTableR::open_table(&db_read)?;
+            for ue_tx_id in block.ue_tx_ids {
+                let ue_tx = table.get_tx(&ue_tx_id)?;
+                ue_txs.push(ue_tx);
+            }
+        }
+        Ok(Block {
+            timestamp: block.timestamp,
+            acts,
+            ue_txs,
+        })
+    }
+
     pub fn check_act_not_exists(&self, act_id: &TxId) -> anyhow::Result<()> {
         let db_read = self.database.begin_read()?;
         let table = ActTableR::open_table(&db_read)?;

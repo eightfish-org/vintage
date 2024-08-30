@@ -26,8 +26,8 @@ where
     pub fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
         match self.get(height)? {
             Some(access) => {
-                let (block, _bytes_read) = BlockInDb::bincode_deserialize(access.value())?;
-                Ok(block)
+                let (value, _bytes_read) = BlockInDb::bincode_deserialize(access.value())?;
+                Ok(value)
             }
             None => Err(anyhow!("block {} not found", height)),
         }

@@ -16,10 +16,9 @@ pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>
     loop {
         let millis = thread_rng().gen_range(500..=1000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(MsgToBlockChain::NetworkMsg((
-            "NodeDev".to_owned(),
+        sender.send_msg(MsgToBlockChain::Broadcast(
             serde_json::to_vec(&random_act()).unwrap(),
-        )));
+        ));
     }
 }
 

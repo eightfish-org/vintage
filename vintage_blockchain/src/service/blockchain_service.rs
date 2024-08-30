@@ -1,12 +1,16 @@
 use crate::db::BlockChainDb;
-use crate::network::{msg_decode, MsgDecoded, MsgToNetworkSender};
+use crate::network::{
+    BroadcastMsg, MsgToNetworkSender, ReqBlock, ReqBlockHash, RequestMsg, RspBlock, RspBlockHash,
+};
 use crate::tx::{TxId, TxPool};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, CalcHash, MsgToBlockChain, NodeId, UpdateEntityTx};
-use vintage_utils::Service;
+use vintage_msg::{
+    Act, Block, CalcHash, Hashed, MsgToBlockChain, NetworkRequestId, NodeId, UpdateEntityTx,
+};
+use vintage_utils::{BincodeDeserialize, Service};
 
 pub struct BlockChainService {
     db: BlockChainDb,
@@ -40,9 +44,17 @@ impl Service for BlockChainService {
         loop {
             match self.msg_receiver.recv().await {
                 Some(msg) => match msg {
-                    MsgToBlockChain::NetworkMsg((node_id, msg_encoded)) => {
-                        if let Err(err) = self.network_msg_handler(node_id, msg_encoded).await {
-                            log::error!("Failed to handle NetworkMsg: {:?}", err);
+                    MsgToBlockChain::Broadcast(msg_encoded) => {
+                        if let Err(err) = self.broadcast_handler(msg_encoded).await {
+                            log::error!("Failed to handle Broadcast: {:?}", err);
+                        }
+                    }
+                    MsgToBlockChain::Request(node_id, request_id, request_encoded) => {
+                        if let Err(err) = self
+                            .request_handler(node_id, request_id, request_encoded)
+                            .await
+                        {
+                            log::error!("Failed to handle Request: {:?}", err);
                         }
                     }
                     MsgToBlockChain::Act(act) => {
@@ -66,31 +78,94 @@ impl Service for BlockChainService {
 
 // network
 impl BlockChainService {
-    async fn network_msg_handler(
-        &self,
-        _node_id: NodeId,
-        msg_encoded: Vec<u8>,
-    ) -> anyhow::Result<()> {
-        let msg_decoded = msg_decode(&msg_encoded)?;
-        match msg_decoded {
-            MsgDecoded::Act(act) => {
+    async fn broadcast_handler(&self, msg_encoded: Vec<u8>) -> anyhow::Result<()> {
+        let (msg, _bytes_read) = BroadcastMsg::bincode_deserialize(&msg_encoded)?;
+        match msg {
+            BroadcastMsg::Act(act) => {
                 let act_id = self.put_act_to_pool(act).await?;
                 log::info!("act from network: {}", act_id);
+                Ok(())
             }
         }
+    }
+
+    async fn request_handler(
+        &self,
+        node_id: NodeId,
+        request_id: NetworkRequestId,
+        request_encoded: Vec<u8>,
+    ) -> anyhow::Result<()> {
+        let (msg, _bytes_read) = RequestMsg::bincode_deserialize(&request_encoded)?;
+        match msg {
+            RequestMsg::ReqBlockHash(req) => {
+                self.request_block_hash_handler(node_id, request_id, req)
+                    .await
+            }
+            RequestMsg::ReqBlock(req) => self.request_block_handler(node_id, request_id, req).await,
+        }
+    }
+
+    async fn request_block_hash_handler(
+        &self,
+        node_id: NodeId,
+        request_id: NetworkRequestId,
+        req: ReqBlockHash,
+    ) -> anyhow::Result<()> {
+        log::debug!("request_block_hash_handler from node: {}", node_id);
+        let mut hash_list: Vec<Hashed> = Vec::new();
+        for index in 0..req.count {
+            match self.db.get_block(req.begin_height + index).await {
+                Ok(block) => {
+                    hash_list.push(block.hash);
+                },
+                Err(e) => {
+                    log::info!("Failed to get block at height {}: error:{:?}, break", req.begin_height + index, e);
+                    break;
+                }
+            }
+        }
+        let rsp = RspBlockHash { hash_list };
+        self.network_msg_sender
+            .send_response(node_id, request_id, rsp);
+        Ok(())
+    }
+
+    async fn request_block_handler(
+        &self,
+        node_id: NodeId,
+        request_id: NetworkRequestId,
+        req: ReqBlock,
+    ) -> anyhow::Result<()> {
+        log::info!("request_block_handler from node: {}", node_id);
+        let mut block_list: Vec<Block> = Vec::new();
+        for index in 0..req.count {
+            let block = self.db.get_network_block(req.begin_height + index).await?;
+            block_list.push(block);
+        }
+        let rsp = RspBlock { block_list };
+        self.network_msg_sender
+            .send_response(node_id, request_id, rsp);
         Ok(())
     }
 }
 
-// act
+// proxy
 impl BlockChainService {
+    async fn ue_tx_handler(&self, tx: UpdateEntityTx) -> anyhow::Result<()> {
+        let tx_id = tx.calc_hash();
+        self.db.insert_ue_tx_to_pool(tx_id, tx).await
+    }
+
     async fn act_handler(&self, act: Act) -> anyhow::Result<()> {
         let act_id = self.put_act_to_pool(act.clone()).await?;
         log::info!("act from proxy: {}", act_id);
-        self.network_msg_sender.broadcast_msg(&act);
+        self.network_msg_sender
+            .send_broadcast(&BroadcastMsg::Act(act));
         Ok(())
     }
+}
 
+impl BlockChainService {
     async fn put_act_to_pool(&self, act: Act) -> anyhow::Result<TxId> {
         let act_id = act.calc_hash();
         {
@@ -103,13 +178,5 @@ impl BlockChainService {
             self.tx_pool.guard().insert_act(act_id.clone(), act);
         }
         Ok(act_id)
-    }
-}
-
-// update entity
-impl BlockChainService {
-    async fn ue_tx_handler(&self, tx: UpdateEntityTx) -> anyhow::Result<()> {
-        let tx_id = tx.calc_hash();
-        self.db.insert_ue_tx_to_pool(tx_id, tx).await
     }
 }

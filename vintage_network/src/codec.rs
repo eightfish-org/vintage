@@ -1,9 +1,8 @@
+use crate::messages::NetworkMessage;
 use bytes::{Buf, BufMut, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
-use crate::messages::NetworkMessage;
-
-pub struct BlockchainCodec;
+pub(crate) struct BlockchainCodec;
 
 impl Decoder for BlockchainCodec {
     type Item = NetworkMessage;

@@ -35,7 +35,7 @@ impl Proxy {
         let inbound_redis_conn = redis_client.get_async_connection().await?;
         let outbound_redis_conn = redis_client.get_async_connection().await?;
 
-        let inbound_service = ServiceStarter::new_with_input(
+        let inbound_service_starter = ServiceStarter::new_with_input(
             ProxyInboundService::new(
                 inbound_redis_conn,
                 channels.blockchain_msg_sender,
@@ -43,11 +43,11 @@ impl Proxy {
             ),
             inbound_pub_sub,
         );
-        let outbound_service = ServiceStarter::new(ProxyOutboundService::new(
+        let outbound_service_starter = ServiceStarter::new(ProxyOutboundService::new(
             outbound_redis_conn,
             channels.msg_receiver,
         ));
 
-        Ok((inbound_service, outbound_service))
+        Ok((inbound_service_starter, outbound_service_starter))
     }
 }

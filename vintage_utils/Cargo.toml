@@ -11,3 +11,4 @@ redb = { version = "1.5.1" }
 serde = { version = "1.0.203" }
 tokio = { version = "1.38.0", features = ["full"]  }
 time = { version = "0.3.36" }
+uuid = { version = "1.8.0", features = ["v4"] }

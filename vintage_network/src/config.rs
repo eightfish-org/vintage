@@ -11,3 +11,11 @@ pub struct NodeConfig {
     pub vote_weight: u32,
     pub block_interval: u64,
 }
+
+impl NodeConfig{
+    pub fn get_number_of_node(&self) -> usize {
+        // Add peer nodes
+        let number_of_peers = self.peers.len();
+        number_of_peers + 1
+    }
+}

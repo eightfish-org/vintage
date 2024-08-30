@@ -19,7 +19,7 @@ impl From<SocketAddr> for PeerAddress {
         }
     }
 }
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PeerInfo {
     pub address: SocketAddr,
     pub name: String,
@@ -48,7 +48,7 @@ impl PeerManager {
         }
     }
 
-    pub async fn load_peers_from_yaml(&self, yaml_content: &str) -> Result<(), serde_yaml::Error> {
+    pub async fn _load_peers_from_yaml(&self, yaml_content: &str) -> Result<(), serde_yaml::Error> {
         let peer_infos: Vec<PeerInfo> = serde_yaml::from_str(yaml_content)?;
         let mut peers = self.peers.lock().await;
         for info in peer_infos {
@@ -66,7 +66,7 @@ impl PeerManager {
         Ok(())
     }
 
-    pub async fn get_peers(&self) -> Vec<PeerInfo> {
+    pub async fn _get_peers(&self) -> Vec<PeerInfo> {
         let peers = self.peers.lock().await;
         peers.values().map(|status| status.info.clone()).collect()
     }
