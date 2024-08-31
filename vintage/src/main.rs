@@ -38,12 +38,12 @@ async fn main() -> anyhow::Result<()> {
     // channels
     #[allow(unused_variables)]
     let (
-        proxy_msg_sender,
         blockchain_msg_sender,
+        proxy_msg_sender,
         consensus_msg_sender,
         network_msg_sender,
-        proxy_chn,
         blockchain_chn,
+        proxy_chn,
         consensus_chn,
         network_chn,
     ) = msg_channels();
@@ -72,10 +72,8 @@ async fn main() -> anyhow::Result<()> {
     } else {
         VintageNode::create(
             config.node,
+            consensus_chn,
             network_chn,
-            consensus_msg_sender,
-            network_msg_sender,
-            consensus_chn.msg_receiver,
             block_consensus,
             request_mgr,
         )

@@ -1,10 +1,8 @@
-use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use vintage_blockchain::BlockConsensusImpl;
-use vintage_consensus::{BlockConsensus, OverlordMsg, Validator};
-use vintage_msg::{Block, MsgToNetwork, NetworkMsgChannels, OverlordMsgBlock};
+use vintage_consensus::{Validator};
+use vintage_msg::{ConsensusMsgChannels, NetworkMsgChannels};
 use vintage_network::config::NodeConfig;
 use vintage_network::request::ArcNetworkRequestMgr;
 use vintage_network::Node;
@@ -12,33 +10,25 @@ use vintage_utils::{Service, ServiceStarter};
 
 pub struct VintageNode {
     config: NodeConfig,
-    node: Node,
     validator: Validator<BlockConsensusImpl>,
+    node: Node,
 }
 
 impl VintageNode {
     pub async fn create(
         config: NodeConfig,
+        consensus_chn: ConsensusMsgChannels,
         network_chn: NetworkMsgChannels,
-        consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
-        outbound: mpsc::Sender<MsgToNetwork>,
-        inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our blockchain or database.
         block_consensus: BlockConsensusImpl,
         request_mgr: ArcNetworkRequestMgr,
     ) -> anyhow::Result<ServiceStarter<Self>> {
-        let block_height = block_consensus
-            .get_block_height()
-            .await
-            .map_err(|err| anyhow!("get_block_height err: {:?}", err))?;
+        let node = Node::create(&config, network_chn, request_mgr).await?;
 
-        let node = Node::create(&config, network_chn, consensus_msg_sender, request_mgr).await?;
-        let validator = Validator::new(
+        let validator = Validator::create(
             &config,
-            outbound,
-            inbound,
+            consensus_chn,
             block_consensus,
-            block_height + 1,
-        );
+        ).await?;
 
         Ok(ServiceStarter::new(Self {
             config,

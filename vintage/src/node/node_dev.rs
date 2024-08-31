@@ -1,3 +1,4 @@
+use std::error::Error;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::time::Duration;
@@ -37,43 +38,25 @@ impl Service for VintageNodeDev {
     async fn service(mut self, _input: Self::Input) -> Self::Output {
         loop {
             tokio::time::sleep(Duration::from_millis(self.block_interval)).await;
-            self.run().await
+            if let Err(err) = self.generate_block().await {
+                log::error!("generate_block err: {:?}", err);
+            }
         }
     }
 }
 
 impl VintageNodeDev {
-    async fn run(&mut self) {
-        let (block, hash) = match self.block_consensus.new_block(self.next_height).await {
-            Ok(value) => value,
-            Err(err) => {
-                log::error!("get block err: {:?}", err);
-                return;
-            }
-        };
-        match self
+    async fn generate_block(&mut self) -> Result<(), Box<dyn Error + Send>> {
+        let (block, hash) = self.block_consensus.new_block(self.next_height).await?;
+        self
             .block_consensus
             .check_block(self.next_height, block.clone(), hash.clone())
-            .await
-        {
-            Ok(_) => {}
-            Err(err) => {
-                log::error!("check block err: {:?}", err);
-                return;
-            }
-        }
-        match self
+            .await?;
+        self
             .block_consensus
             .commit_block(self.next_height, block, hash)
-            .await
-        {
-            Ok(_) => {}
-            Err(err) => {
-                log::error!("commit block err: {:?}", err);
-                return;
-            }
-        }
-
+            .await?;
         self.next_height += 1;
+        Ok(())
     }
 }

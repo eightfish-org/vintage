@@ -35,15 +35,15 @@ impl BlockChainCore {
 }
 
 impl BlockChainCore {
-    pub fn get_last_commited_time(&self) -> Timestamp {
+    pub(crate) fn get_last_commited_time(&self) -> Timestamp {
         self.last_commited_time
     }
 
-    pub async fn get_block_height(&self) -> anyhow::Result<BlockHeight> {
+    pub(crate) async fn get_block_height(&self) -> anyhow::Result<BlockHeight> {
         self.db.get_block_height().await
     }
 
-    pub async fn new_block(&self, height: u64) -> anyhow::Result<(Block, Hashed)> {
+    pub(crate) async fn new_block(&self, height: u64) -> anyhow::Result<(Block, Hashed)> {
         self.check_block_height(height).await?;
         // prev block
         let prev_block = self.get_block(height - 1).await?;
@@ -80,12 +80,12 @@ impl BlockChainCore {
         ))
     }
 
-    pub async fn check_block(&self, height: u64, block: Block, hash: Hashed) -> anyhow::Result<()> {
+    pub(crate) async fn check_block(&self, height: u64, block: &Block, hash: &Hashed) -> anyhow::Result<()> {
         // prev block
         let prev_block = self.get_block(height - 1).await?;
 
         // tx
-        let (act_ids, ue_tx_ids) = Self::tx_ids_of(&block);
+        let (act_ids, ue_tx_ids) = Self::tx_ids_of(block);
         self.db.check_acts_not_exist(act_ids.clone()).await?;
         self.db.check_ue_txs_not_exist(ue_tx_ids.clone()).await?;
         self.check_ue_txs_exist_in_pool(ue_tx_ids.clone()).await?;
@@ -102,14 +102,14 @@ impl BlockChainCore {
             &ue_tx_ids,
             &prev_block.hash,
         );
-        if hash == calc_hash {
+        if *hash == calc_hash {
             Ok(())
         } else {
             Err(anyhow!("block hash, {} != {}", hash, calc_hash).into())
         }
     }
 
-    pub async fn commit_block(
+    pub(crate) async fn commit_block(
         &mut self,
         height: u64,
         block: Block,
@@ -152,6 +152,17 @@ impl BlockChainCore {
         self.proxy_msg_sender
             .send_block_event(timestamp, total_acts, acts, ue_txs);
 
+        Ok(())
+    }
+
+    pub(crate) async fn import_block(
+        &mut self,
+        block_height: BlockHeight,
+        block: Block,
+        hash: BlockHash,
+    ) -> anyhow::Result<()> {
+        self.check_block(block_height, &block, &hash).await?;
+        self.commit_block(block_height, block, hash).await?;
         Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use vintage_msg::{NetworkMsgHandler, NetworkRequestId, OverlordMsgBlock};
@@ -18,11 +17,17 @@ pub(crate) enum NetworkMessagePayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum NetworkMessageContent {
+    Broadcast(NetworkBroadcast),
     Request(NetworkRequest),
     Response(NetworkResponse),
-    Broadcast(NetworkBroadcast),
     ConsensusBroadcast(OverlordMsgBlock),
-    ConsensusMsgRelay(Bytes, OverlordMsgBlock),
+    ConsensusMsgRelay(OverlordMsgBlock),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkBroadcast {
+    pub handler: NetworkMsgHandler,
+    pub broadcast_content: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,10 +41,4 @@ pub struct NetworkRequest {
 pub struct NetworkResponse {
     pub request_id: NetworkRequestId,
     pub response_content: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkBroadcast {
-    pub handler: NetworkMsgHandler,
-    pub broadcast_content: Vec<u8>,
 }

@@ -50,7 +50,7 @@ impl BlockConsensus<Block> for BlockConsensusImpl {
             self.blockchain_core
                 .try_lock()
                 .map_err(|err| anyhow!("lock blockchain_core failed {:?}", err))?
-                .check_block(height, block, block_hash)
+                .check_block(height, &block, &block_hash)
                 .await
         }?;
         Ok(())

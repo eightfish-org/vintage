@@ -1,7 +1,9 @@
 use crate::request::ArcNetworkRequestMgr;
 use crate::response::{NetworkResponseIO, NetworkResponseReader};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio::time::error::Elapsed;
 use vintage_msg::{MsgToNetwork, NetworkMsgHandler, NodeId};
 use vintage_utils::SendMsg;
 
@@ -24,31 +26,42 @@ impl NetworkClient {
         }
     }
 
-    pub fn request(
-        &mut self,
+    pub async fn request(
+        &self,
+        timeout: Duration,
         node_id: NodeId,
         handler: NetworkMsgHandler,
         content: Vec<u8>,
-    ) -> DynNetworkResponseReader {
-        let (request_id, response) = self.request_mgr.lock().unwrap().request();
+    ) -> Result<Vec<u8>, Elapsed> {
+        let (request_id, response) = { self.request_mgr.lock().unwrap().request() };
         self.network_msg_sender
             .send_msg(MsgToNetwork::Request(node_id, handler, request_id, content));
-        response
+        let result = response.read_data(timeout).await;
+        {
+            self.request_mgr.lock().unwrap().remove(request_id);
+        }
+        result
     }
 
-    pub fn request_broadcast(
-        &mut self,
+    pub async fn request_broadcast(
+        &self,
+        timeout: Duration,
         handler: NetworkMsgHandler,
         content: Vec<u8>,
         node_count: usize,
-    ) -> DynNetworkResponseReader {
-        let (request_id, response) = self
-            .request_mgr
-            .lock()
-            .unwrap()
-            .request_broadcast(node_count);
+    ) -> Result<Vec<u8>, Elapsed> {
+        let (request_id, response) = {
+            self.request_mgr
+                .lock()
+                .unwrap()
+                .request_broadcast(node_count)
+        };
         self.network_msg_sender
             .send_msg(MsgToNetwork::RequestBroadcast(handler, request_id, content));
-        response
+        let result = response.read_data(timeout).await;
+        {
+            self.request_mgr.lock().unwrap().remove(request_id);
+        }
+        result
     }
 }

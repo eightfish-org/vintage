@@ -50,6 +50,7 @@ impl BlockChain {
         let tx_pool = Arc::new(TxPool::new(ACT_POOL_CAPACITY));
         let network_msg_sender = MsgToNetworkSender::new(channels.network_msg_sender);
         let proxy_msg_sender = MsgToProxySender::new(channels.proxy_msg_sender);
+        let client = BlockChainNetworkClient::new(client);
 
         let blockchain_core = Arc::new(tokio::sync::Mutex::new(BlockChainCore::new(
             db.clone(),
@@ -57,7 +58,7 @@ impl BlockChain {
             proxy_msg_sender,
         )));
         let block_sync_service =
-            BlockSyncService::new(block_interval, client, network_msg_sender.clone());
+            BlockSyncService::new(block_interval, client);
         let blockchain_service = BlockChainService::new(
             db.clone(),
             tx_pool,

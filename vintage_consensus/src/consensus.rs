@@ -12,8 +12,9 @@ use overlord::{Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use anyhow::anyhow;
 use tokio::sync::mpsc;
-use vintage_msg::Block;
+use vintage_msg::{Block, ConsensusMsgChannels, OverlordMsgBlock};
 use vintage_msg::MsgToNetwork;
 use vintage_network::config::NodeConfig;
 
@@ -193,7 +194,7 @@ where
     async fn broadcast_to_other(
         &self,
         _ctx: Context,
-        words: OverlordMsg<Block>,
+        words: OverlordMsgBlock,
     ) -> Result<(), Box<dyn Error + Send>> {
         //log::info!("==broadcast_to_other");
         let _result = self
@@ -207,7 +208,7 @@ where
         &self,
         _ctx: Context,
         name: Bytes,
-        words: OverlordMsg<Block>,
+        words: OverlordMsgBlock,
     ) -> Result<(), Box<dyn Error + Send>> {
         //Skip for now
         let _result = self
@@ -238,31 +239,35 @@ where
     overlord: Arc<Overlord<Block, ConsensusEngine<BC>, MockCrypto, MockWal>>,
     handler: OverlordHandler<Block>,
     _consensus_engine: Arc<ConsensusEngine<BC>>,
-    inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsg<Block>>>,
+    inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsgBlock>>,
 }
 
 impl<BC> Validator<BC>
 where
     BC: BlockConsensus<Block> + Send + Sync + 'static,
 {
-    pub fn new(
+    pub async fn create(
         config: &NodeConfig,
-        outbound: mpsc::Sender<MsgToNetwork>,
-        inbound: mpsc::Receiver<OverlordMsg<Block>>, //this is our block chian or database.
+        consensus_chn: ConsensusMsgChannels,
         block_consensus: BC,
-        block_height: u64,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
+        let block_height = block_consensus
+            .get_block_height()
+            .await
+            .map_err(|err| anyhow!("get_block_height err: {:?}", err))?;
+
         log::info!(
             "Validator Created. start with block_height: {}",
-            block_height
+            block_height + 1
         );
+
         let name = socket_addr_to_bytes(&config.listen_addr);
         let node_list = build_node_list(config);
         let crypto = MockCrypto::new(name.clone());
         let consensus_engine = Arc::new(ConsensusEngine::<BC>::new(
             block_consensus,
             node_list.clone(),
-            outbound,
+            consensus_chn.network_msg_sender,
             config.clone(),
         ));
         let overlord = Overlord::new(
@@ -277,7 +282,7 @@ where
             .send_msg(
                 Context::new(),
                 OverlordMsg::RichStatus(Status {
-                    height: block_height,
+                    height: block_height + 1,
                     interval: Some(config.block_interval),
                     timer_config: None,
                     authority_list: node_list,
@@ -285,12 +290,12 @@ where
             )
             .unwrap();
 
-        Self {
+        Ok(Self {
             overlord: Arc::new(overlord),
             handler: overlord_handler,
             _consensus_engine: consensus_engine,
-            inbound: tokio::sync::Mutex::new(inbound),
-        }
+            inbound: tokio::sync::Mutex::new(consensus_chn.msg_receiver),
+        })
     }
 
     pub async fn run(self: Arc<Self>, config: NodeConfig) -> Result<(), Box<dyn Error + Send>> {

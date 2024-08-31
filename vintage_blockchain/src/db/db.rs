@@ -47,6 +47,19 @@ impl BlockChainDb {
         }
     }
 
+    pub async fn get_network_block(&self, height: BlockHeight) -> anyhow::Result<Block> {
+        if height == GENESIS_BLOCK_HEIGHT {
+            Ok(Block {
+                timestamp: GENESIS_BLOCK_TIMESTAMP,
+                acts: Vec::new(),
+                ue_txs: Vec::new(),
+            })
+        } else {
+            let db = self.db.clone();
+            spawn_blocking(move || db.get_network_block(height)).await?
+        }
+    }
+
     pub async fn check_act_not_exists(&self, act_id: TxId) -> anyhow::Result<()> {
         let db = self.db.clone();
         spawn_blocking(move || db.check_act_not_exists(&act_id)).await?

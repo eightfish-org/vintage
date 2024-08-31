@@ -22,23 +22,23 @@ pub struct ConsensusMsgChannels {
     pub msg_receiver: mpsc::Receiver<OverlordMsgBlock>,
     // sender
     pub network_msg_sender: mpsc::Sender<MsgToNetwork>,
-    pub consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
 }
 
 pub struct NetworkMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<MsgToNetwork>,
     // sender
+    pub consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
     pub blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
 }
 
 pub fn msg_channels() -> (
-    mpsc::Sender<MsgToProxy>,
     mpsc::Sender<MsgToBlockChain>,
+    mpsc::Sender<MsgToProxy>,
     mpsc::Sender<OverlordMsgBlock>,
     mpsc::Sender<MsgToNetwork>,
-    ProxyMsgChannels,
     BlockChainMsgChannels,
+    ProxyMsgChannels,
     ConsensusMsgChannels,
     NetworkMsgChannels,
 ) {
@@ -52,27 +52,27 @@ pub fn msg_channels() -> (
 
     // channels
     (
-        proxy_msg_sender.clone(),
         blockchain_msg_sender.clone(),
+        proxy_msg_sender.clone(),
         consensus_msg_sender.clone(),
         network_msg_sender.clone(),
+        BlockChainMsgChannels {
+            msg_receiver: blockchain_msg_receiver,
+            proxy_msg_sender,
+            network_msg_sender: network_msg_sender.clone(),
+        },
         ProxyMsgChannels {
             msg_receiver: proxy_msg_receiver,
             blockchain_msg_sender: blockchain_msg_sender.clone(),
         },
-        BlockChainMsgChannels {
-            msg_receiver: blockchain_msg_receiver,
-            proxy_msg_sender: proxy_msg_sender,
-            network_msg_sender: network_msg_sender.clone(),
-        },
         ConsensusMsgChannels {
             msg_receiver: consensus_msg_receiver,
-            network_msg_sender: network_msg_sender.clone(),
-            consensus_msg_sender,
+            network_msg_sender,
         },
         NetworkMsgChannels {
             msg_receiver: network_msg_receiver,
             blockchain_msg_sender,
+            consensus_msg_sender,
         },
     )
 }

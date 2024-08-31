@@ -47,6 +47,10 @@ impl NetworkRequestMgr {
         }
     }
 
+    pub(super) fn remove(&mut self, request_id: NetworkRequestId) {
+        self.requests.remove(&request_id);
+    }
+
     fn insert_request(&mut self, response: DynNetworkResponse) -> NetworkRequestId {
         self.last_request_id += 1;
         self.requests.insert(self.last_request_id, response);

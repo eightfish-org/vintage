@@ -14,6 +14,10 @@ impl<TData> Data<TData> {
         }
     }
 
+    pub fn is_ready(&self) -> bool {
+        self.activation.is_active()
+    }
+
     pub fn set_data(&self, data: TData) {
         {
             *self.data.lock().unwrap() = data

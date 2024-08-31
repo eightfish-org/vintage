@@ -6,7 +6,7 @@ mod peer_manager;
 pub mod request;
 mod response;
 
-use crate::messages::{NetworkBroadcast, NetworkMessageContent, NetworkRequest};
+use crate::messages::{NetworkBroadcast, NetworkMessageContent, NetworkRequest, NetworkResponse};
 use crate::request::ArcNetworkRequestMgr;
 use bytes::Bytes;
 use codec::BlockchainCodec;
@@ -72,14 +72,13 @@ impl Node {
     pub async fn create(
         config: &NodeConfig,
         channels: NetworkMsgChannels,
-        consensus_msg_sender: mpsc::Sender<OverlordMsgBlock>,
         request_mgr: ArcNetworkRequestMgr,
     ) -> Result<Self, anyhow::Error> {
         //let (incoming_tx, incoming_rx) = mpsc::channel(100);
         //let (outgoing_tx, outgoing_rx) = mpsc::channel(100);
         let outgoing_rx = channels.msg_receiver;
         let incoming_tx = channels.blockchain_msg_sender;
-        let consensus_incoming_tx = consensus_msg_sender;
+        let consensus_incoming_tx = channels.consensus_msg_sender;
         let peer_manager = Arc::new(PeerManager::new(5));
         for peer in &config.peers {
             peer_manager.add_peer(peer.address).await;
@@ -143,40 +142,35 @@ impl Node {
         loop {
             if let Some(message) = self.outgoing_messages.recv().await {
                 match message {
-                    MsgToNetwork::Request(
-                        node_id,
-                        request_handler,
-                        request_id,
-                        request_content,
-                    ) => {
-                        self.handle_message(
-                            node_id,
-                            NetworkMessageContent::Request(NetworkRequest {
-                                handler: request_handler,
-                                request_id,
-                                request_content,
-                            }),
-                        )
-                        .await?;
-                    }
-                    MsgToNetwork::RequestBroadcast(
-                        request_handler,
-                        request_id,
-                        request_content,
-                    ) => {
-                        let message_content = NetworkMessageContent::Request(NetworkRequest {
-                            handler: request_handler,
-                            request_id,
-                            request_content,
-                        });
-                        self.handle_broadcast_message(message_content).await?;
-                    }
                     MsgToNetwork::Broadcast(handler, broadcast_content) => {
                         let message_content = NetworkMessageContent::Broadcast(NetworkBroadcast {
                             handler,
                             broadcast_content,
                         });
                         self.handle_broadcast_message(message_content).await?;
+                    }
+                    MsgToNetwork::Request(node_id, handler, request_id, request_content) => {
+                        let message_content = NetworkMessageContent::Request(NetworkRequest {
+                            handler,
+                            request_id,
+                            request_content,
+                        });
+                        self.handle_message(node_id, message_content).await?;
+                    }
+                    MsgToNetwork::RequestBroadcast(handler, request_id, request_content) => {
+                        let message_content = NetworkMessageContent::Request(NetworkRequest {
+                            handler,
+                            request_id,
+                            request_content,
+                        });
+                        self.handle_broadcast_message(message_content).await?;
+                    }
+                    MsgToNetwork::Response(node_id, request_id, response_content) => {
+                        let message_content = NetworkMessageContent::Response(NetworkResponse {
+                            request_id,
+                            response_content,
+                        });
+                        self.handle_message(node_id, message_content).await?;
                     }
                     MsgToNetwork::ConsensusBroadcast(content) => {
                         let message_content = NetworkMessageContent::ConsensusBroadcast(content);
@@ -188,7 +182,7 @@ impl Node {
                             Ok(recovered_addr) => {
                                 self.handle_message(
                                     recovered_addr,
-                                    NetworkMessageContent::ConsensusMsgRelay(bytes, block),
+                                    NetworkMessageContent::ConsensusMsgRelay(block),
                                 )
                                 .await?;
                             }
@@ -323,13 +317,31 @@ impl Node {
 
                             if let NetworkMessagePayload::Content(content) = message.payload {
                                 match content {
+                                    NetworkMessageContent::Broadcast(broadcast) => {
+                                        let msg =
+                                            MsgToBlockChain::Broadcast(broadcast.broadcast_content);
+                                        match broadcast.handler {
+                                            NetworkMsgHandler::BlockChain => {
+                                                log::info!("Send MsgToBlockChain::Broadcast to vintage_blockchain");
+                                                if let Err(e) = incoming_messages.send(msg).await {
+                                                    eprintln!(
+                                                        "Failed to send message to application layer: {}",
+                                                        e
+                                                    );
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
                                     NetworkMessageContent::Request(request) => {
+                                        let msg = MsgToBlockChain::Request(
+                                            addr,
+                                            request.request_id,
+                                            request.request_content,
+                                        );
                                         match request.handler {
                                             NetworkMsgHandler::BlockChain => {
-                                                let msg = MsgToBlockChain::Request(
-                                                    request.request_id,
-                                                    request.request_content,
-                                                );
+                                                log::info!("Send MsgToBlockChain::Request to vintage_blockchain");
                                                 if let Err(e) = incoming_messages.send(msg).await {
                                                     eprintln!(
                                                         "Failed to send message to application layer: {}",
@@ -347,23 +359,6 @@ impl Node {
                                             response.response_content,
                                         );
                                     }
-                                    NetworkMessageContent::Broadcast(broadcast) => {
-                                        match broadcast.handler {
-                                            NetworkMsgHandler::BlockChain => {
-                                                let msg = MsgToBlockChain::Broadcast(
-                                                    broadcast.broadcast_content,
-                                                );
-                                                log::info!("Send MsgToBlockChain::Broadcast to vintage_blockchain");
-                                                if let Err(e) = incoming_messages.send(msg).await {
-                                                    eprintln!(
-                                                        "Failed to send message to application layer: {}",
-                                                        e
-                                                    );
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
                                     NetworkMessageContent::ConsensusBroadcast(consensus_msg) => {
                                         log::info!("Send ConsensusMsg to vintage_consensus");
                                         if let Err(err) =
@@ -376,11 +371,10 @@ impl Node {
                                             break;
                                         }
                                     }
-                                    NetworkMessageContent::ConsensusMsgRelay(_, consensus_msg) => {
+                                    NetworkMessageContent::ConsensusMsgRelay(consensus_msg) => {
                                         log::info!("Send ConsensusMsgRelay to vintage_consensus");
-                                        if let Err(e) = consensus_incoming_messages
-                                            .send(consensus_msg.clone())
-                                            .await
+                                        if let Err(e) =
+                                            consensus_incoming_messages.send(consensus_msg).await
                                         {
                                             eprintln!(
                                                 "Failed to send message to application layer: {}",

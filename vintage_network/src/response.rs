@@ -2,19 +2,20 @@ use async_trait::async_trait;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Duration;
+use tokio::time::error::Elapsed;
 use vintage_msg::NodeId;
 use vintage_utils::{Activation, Data};
 
-pub trait NetworkResponseIO: NetworkResponseWriter + NetworkResponseReader + Send + Sync {}
+pub trait NetworkResponseIO: NetworkResponseWriter + NetworkResponseReader {}
 
 pub trait NetworkResponseWriter {
     fn write_data(&self, node_id: NodeId, data: Vec<u8>);
 }
 
 #[async_trait]
-pub trait NetworkResponseReader {
-    async fn read_data(&self) -> Vec<u8>;
-    async fn into_data(self) -> Vec<u8>;
+pub trait NetworkResponseReader: Send + Sync {
+    async fn read_data(&self, timeout: Duration) -> Result<Vec<u8>, Elapsed>;
 }
 
 pub struct NetworkSingleResponse {
@@ -39,12 +40,8 @@ impl NetworkResponseWriter for NetworkSingleResponse {
 
 #[async_trait]
 impl NetworkResponseReader for NetworkSingleResponse {
-    async fn read_data(&self) -> Vec<u8> {
-        self.data.clone_data().await
-    }
-
-    async fn into_data(self) -> Vec<u8> {
-        self.data.into_data().await
+    async fn read_data(&self, timeout: Duration) -> Result<Vec<u8>, Elapsed> {
+        tokio::time::timeout(timeout, self.data.clone_data()).await
     }
 }
 
@@ -88,30 +85,16 @@ impl NetworkResponseWriter for NetworkMultiResponse {
 
 #[async_trait]
 impl NetworkResponseReader for NetworkMultiResponse {
-    async fn read_data(&self) -> Vec<u8> {
-        self.activation.wait().await;
+    async fn read_data(&self, timeout: Duration) -> Result<Vec<u8>, Elapsed> {
+        tokio::time::timeout(timeout, self.activation.wait()).await?;
         {
             let guard = self.multi_data.lock().unwrap();
             for (data, node_ids) in &*guard {
                 if node_ids.len() >= self.node_count {
-                    return data.clone();
+                    return Ok(data.clone());
                 }
             }
         }
-        Vec::new()
-    }
-
-    async fn into_data(self) -> Vec<u8> {
-        self.activation.wait().await;
-        {
-            let count = self.node_count;
-            let multi_data = self.multi_data.into_inner().unwrap();
-            for (data, node_ids) in multi_data {
-                if node_ids.len() >= count {
-                    return data;
-                }
-            }
-        }
-        Vec::new()
+        Ok(Vec::new())
     }
 }

@@ -10,6 +10,17 @@ macro_rules! define_tx_table {
         where
             TABLE: redb::ReadableTable<vintage_utils::RedbBytes32, vintage_utils::RedbBytes>,
         {
+            #[allow(dead_code)]
+            pub fn get_tx(&self, tx_id: &$crate::tx::TxId) -> anyhow::Result<$tx> {
+                match self.get(tx_id.as_bytes())? {
+                    Some(access) => {
+                        let (value, _bytes_read) = <$tx as vintage_utils::BincodeDeserialize>::bincode_deserialize(access.value())?;
+                        Ok(value)
+                    }
+                    None => Err(anyhow::anyhow!("tx {} not found", tx_id)),
+                }
+            }
+
             pub fn check_tx_not_exists(&self, tx_id: &$crate::tx::TxId) -> anyhow::Result<()> {
                 if self.exists(tx_id.as_bytes())? {
                     Err(anyhow::anyhow!("{} {} already exists id db", $table_name, tx_id))
