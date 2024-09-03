@@ -53,10 +53,11 @@ async fn main() -> anyhow::Result<()> {
     let client = NetworkClient::new(request_mgr.clone(), network_msg_sender.clone());
 
     // vintage
+    let block_interval = config.node.block_interval;
     let (vintage, block_consensus) = Vintage::create(
         config.blockchain,
+        config.node.clone(),
         config.proxy,
-        config.node.block_interval,
         blockchain_chn,
         proxy_chn,
         client,
@@ -66,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
 
     // node
     let join_node = if config.dev_mode {
-        VintageNodeDev::create(config.node.block_interval, block_consensus)
+        VintageNodeDev::create(block_interval, block_consensus)
             .await?
             .start()
     } else {

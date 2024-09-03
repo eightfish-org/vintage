@@ -15,11 +15,13 @@ pub struct BlockChainMsgChannels {
     // sender
     pub proxy_msg_sender: mpsc::Sender<MsgToProxy>,
     pub network_msg_sender: mpsc::Sender<MsgToNetwork>,
+    pub block_synced_sender: mpsc::Sender<u64>,
 }
 
 pub struct ConsensusMsgChannels {
     // receiver
     pub msg_receiver: mpsc::Receiver<OverlordMsgBlock>,
+    pub block_synced_receiver: mpsc::Receiver<u64>,
     // sender
     pub network_msg_sender: mpsc::Sender<MsgToNetwork>,
 }
@@ -49,7 +51,7 @@ pub fn msg_channels() -> (
         mpsc::channel::<OverlordMsgBlock>(MAX_MPSC_CHANNEL_SIZE);
     let (network_msg_sender, network_msg_receiver) =
         mpsc::channel::<MsgToNetwork>(MAX_MPSC_CHANNEL_SIZE);
-
+    let (block_synced_sender, block_synced_receiver) = mpsc::channel::<u64>(MAX_MPSC_CHANNEL_SIZE);
     // channels
     (
         blockchain_msg_sender.clone(),
@@ -60,6 +62,7 @@ pub fn msg_channels() -> (
             msg_receiver: blockchain_msg_receiver,
             proxy_msg_sender,
             network_msg_sender: network_msg_sender.clone(),
+            block_synced_sender
         },
         ProxyMsgChannels {
             msg_receiver: proxy_msg_receiver,
@@ -68,6 +71,7 @@ pub fn msg_channels() -> (
         ConsensusMsgChannels {
             msg_receiver: consensus_msg_receiver,
             network_msg_sender,
+            block_synced_receiver
         },
         NetworkMsgChannels {
             msg_receiver: network_msg_receiver,

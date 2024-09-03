@@ -240,6 +240,8 @@ where
     handler: OverlordHandler<Block>,
     _consensus_engine: Arc<ConsensusEngine<BC>>,
     inbound: tokio::sync::Mutex<mpsc::Receiver<OverlordMsgBlock>>,
+    config: NodeConfig,
+    block_synced_receiver: tokio::sync::Mutex<mpsc::Receiver<u64>>,
 }
 
 impl<BC> Validator<BC>
@@ -295,6 +297,8 @@ where
             handler: overlord_handler,
             _consensus_engine: consensus_engine,
             inbound: tokio::sync::Mutex::new(consensus_chn.msg_receiver),
+            config: config.clone(),
+            block_synced_receiver: tokio::sync::Mutex::new(consensus_chn.block_synced_receiver),
         })
     }
 
@@ -303,7 +307,7 @@ where
         let interval = config.block_interval;
         let timer_config = timer_config();
         let node_list = build_node_list(&config);
-        let handler = self.handler.clone();
+        let handler: OverlordHandler<Block> = self.handler.clone();
         let s: Arc<Validator<BC>> = self.clone();
         let spawned_task = tokio::spawn(async move {
             log::info!("Validator Started.");
@@ -351,7 +355,43 @@ where
             .await
             .unwrap();
         spawned_task.await.unwrap();
+        let s: Arc<Validator<BC>> = self.clone();
+        let block_sync_task = tokio::spawn(async move {
+            log::info!("Sync Block Started.");
+            loop {
+                let msg = {
+                    let mut receiver = s.block_synced_receiver.lock().await;
+                    receiver.recv().await
+                };
+                match msg {
+                    Some(msg) => {
+                        log::info!("Sync Block receive new height: {}", msg);
+                        s.set_height(msg)
+                    },
+                    None => {
+                        eprintln!("receive nothing");
+                    }
+                }
+            }
+        });
+        block_sync_task.await.unwrap();
         Ok(())
+    }
+
+    pub fn set_height(&self, block_height: u64) {
+        let overlord_handler = self.overlord.get_handler();
+        let node_list = build_node_list(&self.config);
+        overlord_handler
+            .send_msg(
+                Context::new(),
+                OverlordMsg::RichStatus(Status {
+                    height: block_height + 1,
+                    interval: Some(self.config.block_interval),
+                    timer_config: None,
+                    authority_list: node_list,
+                }),
+            )
+            .unwrap();
     }
 }
 

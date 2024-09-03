@@ -1,16 +1,17 @@
 use crate::network::{ReqBlock, ReqBlockHash, RequestMsg, RspBlock, RspBlockHash};
 use std::time::Duration;
 use vintage_msg::NetworkMsgHandler;
-use vintage_network::client::NetworkClient;
+use vintage_network::{client::NetworkClient, config::NodeConfig};
 use vintage_utils::{BincodeDeserialize, BincodeSerialize};
 
 pub(crate) struct BlockChainNetworkClient {
     client: NetworkClient,
+    node_config: NodeConfig
 }
 
 impl BlockChainNetworkClient {
-    pub fn new(client: NetworkClient) -> Self {
-        Self { client }
+    pub fn new(client: NetworkClient, node_config: NodeConfig) -> Self {
+        Self { client, node_config }
     }
 
     const TIMEOUT: Duration = Duration::from_millis(10_000);
@@ -39,7 +40,7 @@ impl BlockChainNetworkClient {
         let encoded = request.bincode_serialize()?;
         let rsp_encoded = self
             .client
-            .request_broadcast(timeout, NetworkMsgHandler::BlockChain, encoded, 2) // todo node_count
+            .request_broadcast(timeout, NetworkMsgHandler::BlockChain, encoded, self.node_config.get_number_of_node()) // todo node_count
             .await?;
         Ok(rsp_encoded)
     }

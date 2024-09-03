@@ -3,22 +3,26 @@ use crate::network::{
     BlockChainNetworkClient, ReqBlock, ReqBlockHash,
 };
 use async_trait::async_trait;
+use tokio::sync::mpsc;
 use std::time::Duration;
-use vintage_utils::{current_timestamp, Service};
+use vintage_utils::{current_timestamp, SendMsg, Service};
 
 pub struct BlockSyncService {
     interval: u64,
     client: BlockChainNetworkClient,
+    block_synced_sender: mpsc::Sender<u64>
 }
 
 impl BlockSyncService {
     pub(crate) fn new(
         block_interval: u64,
         client: BlockChainNetworkClient,
+        block_synced_sender: mpsc::Sender<u64>
     ) -> Self {
         Self {
             interval: block_interval * 10,
             client,
+            block_synced_sender
         }
     }
 }
@@ -30,6 +34,7 @@ impl Service for BlockSyncService {
 
     async fn service(mut self, blockchain_core: Self::Input) -> Self::Output {
         loop {
+            log::info!("====Block sync service loop");
             tokio::time::sleep(Duration::from_millis(self.interval)).await;
             {
                 let guard = blockchain_core.lock().await;
@@ -40,9 +45,10 @@ impl Service for BlockSyncService {
 
             loop {
                 match self.sync_blocks(&blockchain_core).await {
-                    Ok(finished) => {
+                    Ok((finished,new_height)) => {
                         if finished {
-                            // todo send OverlordMsg::RichStatus
+                            log::info!("====Block sync completed. notify new height: {}", new_height);
+                            self.block_synced_sender.send_msg(new_height);
                             break;
                         }
                     }
@@ -59,7 +65,7 @@ impl Service for BlockSyncService {
 impl BlockSyncService {
     const BLOCK_COUNT: u64 = 10;
 
-    async fn sync_blocks(&mut self, blockchain_core: &ArcBlockChainCore) -> anyhow::Result<bool> {
+    async fn sync_blocks(&mut self, blockchain_core: &ArcBlockChainCore) -> anyhow::Result<(bool, u64)> {
         log::info!("Block sync start");
 
         let mut guard = blockchain_core.lock().await;
@@ -100,6 +106,6 @@ impl BlockSyncService {
                 .await?
         }
 
-        Ok(block_count < Self::BLOCK_COUNT)
+        Ok((block_count < Self::BLOCK_COUNT, block_height + block_count))
     }
 }
