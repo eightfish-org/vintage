@@ -106,6 +106,6 @@ impl BlockSyncService {
                 .await?
         }
         log::info!("====Block sync imported block_count: {}", block_count);
-        Ok((block_count <= Self::BLOCK_COUNT, block_height + block_count))
+        Ok((block_count < Self::BLOCK_COUNT, block_height + block_count))
     }
 }
