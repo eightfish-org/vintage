@@ -349,15 +349,9 @@ where
             }
         });
 
-        self.clone()
-            .overlord
-            .run(0, interval, node_list, timer_config)
-            .await
-            .unwrap();
-        spawned_task.await.unwrap();
         let s: Arc<Validator<BC>> = self.clone();
         let block_sync_task = tokio::spawn(async move {
-            log::info!("Sync Block Started.");
+            log::info!("===Handling Sync Block Completed Started.");
             loop {
                 let msg = {
                     let mut receiver = s.block_synced_receiver.lock().await;
@@ -365,7 +359,7 @@ where
                 };
                 match msg {
                     Some(msg) => {
-                        log::info!("Sync Block receive new height: {}", msg);
+                        log::info!("====Sync Block receive new height: {}", msg);
                         s.set_height(msg)
                     },
                     None => {
@@ -374,6 +368,14 @@ where
                 }
             }
         });
+
+        self.clone()
+        .overlord
+        .run(0, interval, node_list, timer_config)
+        .await
+        .unwrap();
+    
+        spawned_task.await.unwrap();
         block_sync_task.await.unwrap();
         Ok(())
     }
@@ -427,6 +429,6 @@ fn build_node_list(config: &NodeConfig) -> Vec<Node> {
             vote_weight: peer.vote_weight,
         });
     }
-
+    log::info!("build_node_list: {:?}", nodes);
     nodes
 }

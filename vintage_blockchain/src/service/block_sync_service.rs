@@ -66,46 +66,46 @@ impl BlockSyncService {
     const BLOCK_COUNT: u64 = 10;
 
     async fn sync_blocks(&mut self, blockchain_core: &ArcBlockChainCore) -> anyhow::Result<(bool, u64)> {
-        log::info!("Block sync start");
+        log::info!("====Block sync start");
 
         let mut guard = blockchain_core.lock().await;
 
         // block height
         let block_height = guard.get_block_height().await?;
-
+        log::info!("====Block sync block_height: {}", block_height);
         // block hash
         let rsp_block_hash = self
             .client
             .request_block_hash(ReqBlockHash {
-                begin_height: block_height,
+                begin_height: block_height + 1,
                 count: Self::BLOCK_COUNT,
             })
             .await?;
         let block_count = rsp_block_hash.hash_list.len() as u64;
-
+        log::info!("====Block sync hash block_count: {}", block_count);
         // block
         let rsp_block = self
             .client
             .request_block(ReqBlock {
-                begin_height: block_height,
+                begin_height: block_height + 1,
                 count: block_count,
             })
             .await?;
         if rsp_block.block_list.len() != block_count as usize {
             return Err(anyhow::anyhow!("Block count mismatch"));
         }
-
+        log::info!("====Block sync start import block count: {}", block_count);
         // import block
         for index in 0..block_count {
             guard
                 .import_block(
-                    block_height + index,
+                    block_height + index + 1,
                     rsp_block.block_list[index as usize].clone(),
                     rsp_block_hash.hash_list[index as usize].clone(),
                 )
                 .await?
         }
-
-        Ok((block_count < Self::BLOCK_COUNT, block_height + block_count))
+        log::info!("====Block sync imported block_count: {}", block_count);
+        Ok((block_count <= Self::BLOCK_COUNT, block_height + block_count))
     }
 }

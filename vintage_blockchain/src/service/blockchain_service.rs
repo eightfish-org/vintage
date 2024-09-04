@@ -111,6 +111,7 @@ impl BlockChainService {
         request_id: NetworkRequestId,
         req: ReqBlockHash,
     ) -> anyhow::Result<()> {
+        log::info!("request_block_hash_handler from node: {}", node_id);
         let mut hash_list: Vec<Hashed> = Vec::new();
         for index in 0..req.count {
             let block = self.db.get_block(req.begin_height + index).await?;
@@ -128,6 +129,7 @@ impl BlockChainService {
         request_id: NetworkRequestId,
         req: ReqBlock,
     ) -> anyhow::Result<()> {
+        log::info!("request_block_handler from node: {}", node_id);
         let mut block_list: Vec<Block> = Vec::new();
         for index in 0..req.count {
             let block = self.db.get_network_block(req.begin_height + index).await?;
