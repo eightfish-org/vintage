@@ -288,7 +288,7 @@ impl Node {
         // Send handshake
         let handshake = NetworkMessage {
             sender: listening_addr,
-            receiver: None,
+            receiver: Some(addr),
             payload: NetworkMessagePayload::Handshake(listening_addr),
         };
         println!("Send out hand shake message to {}", addr);
