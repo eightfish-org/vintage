@@ -114,8 +114,15 @@ impl BlockChainService {
         log::info!("request_block_hash_handler from node: {}", node_id);
         let mut hash_list: Vec<Hashed> = Vec::new();
         for index in 0..req.count {
-            let block = self.db.get_block(req.begin_height + index).await?;
-            hash_list.push(block.hash);
+            match self.db.get_block(req.begin_height + index).await {
+                Ok(block) => {
+                    hash_list.push(block.hash);
+                },
+                Err(e) => {
+                    log::warn!("Failed to get block at height {}: {:?}, skip", req.begin_height + index, e);
+                    continue;
+                }
+            }
         }
         let rsp = RspBlockHash { hash_list };
         self.network_msg_sender

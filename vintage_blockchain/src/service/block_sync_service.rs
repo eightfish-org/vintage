@@ -38,7 +38,8 @@ impl Service for BlockSyncService {
             tokio::time::sleep(Duration::from_millis(self.interval)).await;
             {
                 let guard = blockchain_core.lock().await;
-                if guard.get_last_commited_time() + self.interval > current_timestamp() {
+                if guard.get_last_commited_time() + Duration::from_millis(self.interval).as_secs() > current_timestamp() {
+                    log::info!("=block sync check result in skip: get_last_commited_time: {}, interval: {}, current_timestamp: {}", guard.get_last_commited_time(), Duration::from_millis(self.interval).as_secs(), current_timestamp());
                     continue;
                 }
             }

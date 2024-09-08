@@ -335,7 +335,7 @@ impl Node {
                                     }
                                     NetworkMessageContent::Request(request) => {
                                         let msg = MsgToBlockChain::Request(
-                                            addr,
+                                            peer_listening_addr.unwrap(),
                                             request.request_id,
                                             request.request_content,
                                         );
@@ -354,7 +354,7 @@ impl Node {
                                     }
                                     NetworkMessageContent::Response(response) => {
                                         request_mgr.lock().unwrap().on_response(
-                                            addr,
+                                            peer_listening_addr.unwrap(),
                                             response.request_id,
                                             response.response_content,
                                         );
