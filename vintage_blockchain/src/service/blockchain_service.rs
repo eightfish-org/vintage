@@ -111,7 +111,7 @@ impl BlockChainService {
         request_id: NetworkRequestId,
         req: ReqBlockHash,
     ) -> anyhow::Result<()> {
-        log::info!("request_block_hash_handler from node: {}", node_id);
+        log::debug!("request_block_hash_handler from node: {}", node_id);
         let mut hash_list: Vec<Hashed> = Vec::new();
         for index in 0..req.count {
             match self.db.get_block(req.begin_height + index).await {
@@ -119,8 +119,8 @@ impl BlockChainService {
                     hash_list.push(block.hash);
                 },
                 Err(e) => {
-                    log::warn!("Failed to get block at height {}: {:?}, skip", req.begin_height + index, e);
-                    continue;
+                    log::info!("Failed to get block at height {}: error:{:?}, break", req.begin_height + index, e);
+                    break;
                 }
             }
         }
