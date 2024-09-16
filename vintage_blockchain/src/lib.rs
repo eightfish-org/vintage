@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use vintage_msg::BlockChainMsgChannels;
 use vintage_network::client::NetworkClient;
-use vintage_network::config::NodeConfig;
 use vintage_utils::ServiceStarter;
 
 const ACT_POOL_CAPACITY: usize = 1000;
@@ -37,7 +36,8 @@ pub enum BlockChain {}
 impl BlockChain {
     pub async fn create(
         config: BlockChainConfig,
-        node_config: NodeConfig,
+        block_interval: u64,
+        active_number_of_nodes: usize,
         channels: BlockChainMsgChannels,
         client: NetworkClient,
     ) -> anyhow::Result<(
@@ -46,13 +46,13 @@ impl BlockChain {
         ServiceStarter<BlockChainService>,
         ServiceStarter<BlockSyncService>,
     )> {
-        let block_interval = node_config.block_interval;
         let db_inner = create_db_inner(config.db_path).await?;
         let db = BlockChainDb::new(db_inner.clone());
         let tx_pool = Arc::new(TxPool::new(ACT_POOL_CAPACITY));
         let network_msg_sender = MsgToNetworkSender::new(channels.network_msg_sender);
         let proxy_msg_sender = MsgToProxySender::new(channels.proxy_msg_sender);
-        let client = BlockChainNetworkClient::new(client, node_config);
+        let client =
+            BlockChainNetworkClient::new(NetworkClientWrapper::new(client, active_number_of_nodes));
 
         let blockchain_core = Arc::new(tokio::sync::Mutex::new(BlockChainCore::new(
             db.clone(),

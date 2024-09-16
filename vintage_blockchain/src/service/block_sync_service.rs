@@ -81,7 +81,7 @@ impl BlockSyncService {
         let block_height = guard.get_block_height().await?;
         log::info!("====Block sync block_height: {}", block_height);
         // block hash
-        let rsp_block_hash = self
+        let (node_id, rsp_block_hash) = self
             .client
             .request_block_hash(ReqBlockHash {
                 begin_height: block_height + 1,
@@ -93,10 +93,13 @@ impl BlockSyncService {
         // block
         let rsp_block = self
             .client
-            .request_block(ReqBlock {
-                begin_height: block_height + 1,
-                count: block_count,
-            })
+            .request_block(
+                node_id,
+                ReqBlock {
+                    begin_height: block_height + 1,
+                    count: block_count,
+                },
+            )
             .await?;
         if rsp_block.block_list.len() != block_count as usize {
             return Err(anyhow::anyhow!("Block count mismatch"));

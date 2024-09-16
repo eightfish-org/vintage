@@ -1,9 +1,9 @@
+use anyhow::anyhow;
 use async_trait::async_trait;
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::Duration;
-use tokio::time::error::Elapsed;
 use vintage_msg::NodeId;
 use vintage_utils::{Activation, Data};
 
@@ -15,7 +15,7 @@ pub trait NetworkResponseWriter {
 
 #[async_trait]
 pub trait NetworkResponseReader: Send + Sync {
-    async fn read_data(&self, timeout: Duration) -> Result<Vec<u8>, Elapsed>;
+    async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)>;
 }
 
 pub struct NetworkSingleResponse {
@@ -25,7 +25,7 @@ pub struct NetworkSingleResponse {
 impl NetworkSingleResponse {
     pub fn new() -> Self {
         Self {
-            data: Data::new(Vec::new()),
+            data: Data::new(Default::default()),
         }
     }
 }
@@ -40,15 +40,16 @@ impl NetworkResponseWriter for NetworkSingleResponse {
 
 #[async_trait]
 impl NetworkResponseReader for NetworkSingleResponse {
-    async fn read_data(&self, timeout: Duration) -> Result<Vec<u8>, Elapsed> {
-        tokio::time::timeout(timeout, self.data.clone_data()).await
+    async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
+        let data = tokio::time::timeout(timeout, self.data.clone_data()).await?;
+        Ok((Default::default(), data))
     }
 }
 
 pub struct NetworkMultiResponse {
     activation: Activation,
     node_count: usize,
-    multi_data: Mutex<HashMap<Vec<u8>, HashMap<NodeId, ()>>>,
+    multi_data: Mutex<HashMap<Vec<u8>, HashSet<NodeId>>>,
 }
 
 impl NetworkMultiResponse {
@@ -69,14 +70,14 @@ impl NetworkResponseWriter for NetworkMultiResponse {
         match guard.entry(data) {
             Entry::Occupied(mut entry) => {
                 let node_ids = entry.get_mut();
-                node_ids.insert(node_id, ());
+                node_ids.insert(node_id);
                 if node_ids.len() >= self.node_count {
                     self.activation.set_active(true);
                 }
             }
             Entry::Vacant(entry) => {
-                let mut node_ids = HashMap::with_capacity(self.node_count);
-                node_ids.insert(node_id, ());
+                let mut node_ids = HashSet::with_capacity(self.node_count);
+                node_ids.insert(node_id);
                 entry.insert(node_ids);
             }
         }
@@ -85,16 +86,17 @@ impl NetworkResponseWriter for NetworkMultiResponse {
 
 #[async_trait]
 impl NetworkResponseReader for NetworkMultiResponse {
-    async fn read_data(&self, timeout: Duration) -> Result<Vec<u8>, Elapsed> {
+    async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
         tokio::time::timeout(timeout, self.activation.wait()).await?;
         {
             let guard = self.multi_data.lock().unwrap();
             for (data, node_ids) in &*guard {
                 if node_ids.len() >= self.node_count {
-                    return Ok(data.clone());
+                    let node_ids: Vec<NodeId> = node_ids.iter().cloned().collect();
+                    return Ok((node_ids, data.clone()));
                 }
             }
         }
-        Ok(Vec::new())
+        Err(anyhow!("network multi response err"))
     }
 }

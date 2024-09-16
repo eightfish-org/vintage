@@ -3,7 +3,6 @@ use crate::response::{NetworkResponseIO, NetworkResponseReader};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::error::Elapsed;
 use vintage_msg::{MsgToNetwork, NetworkMsgHandler, NodeId};
 use vintage_utils::SendMsg;
 
@@ -28,11 +27,11 @@ impl NetworkClient {
 
     pub async fn request(
         &self,
-        timeout: Duration,
         node_id: NodeId,
         handler: NetworkMsgHandler,
         content: Vec<u8>,
-    ) -> Result<Vec<u8>, Elapsed> {
+        timeout: Duration,
+    ) -> anyhow::Result<Vec<u8>> {
         let (request_id, response) = { self.request_mgr.lock().unwrap().request() };
         self.network_msg_sender
             .send_msg(MsgToNetwork::Request(node_id, handler, request_id, content));
@@ -40,16 +39,17 @@ impl NetworkClient {
         {
             self.request_mgr.lock().unwrap().remove(request_id);
         }
-        result
+        let (_node_ids, data) = result?;
+        Ok(data)
     }
 
     pub async fn request_broadcast(
         &self,
-        timeout: Duration,
+        node_count: usize,
         handler: NetworkMsgHandler,
         content: Vec<u8>,
-        node_count: usize,
-    ) -> Result<Vec<u8>, Elapsed> {
+        timeout: Duration,
+    ) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
         let (request_id, response) = {
             self.request_mgr
                 .lock()
