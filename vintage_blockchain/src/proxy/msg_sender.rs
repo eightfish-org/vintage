@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 use vintage_msg::{
-    Act, ActEvent, BlockEvent, Hashed, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
+    Act, ActEvent, BlockEvent, BlockHeight, Hashed, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
 };
 use vintage_utils::{SendMsg, Timestamp};
 
@@ -16,6 +16,7 @@ impl MsgToProxySender {
 
     pub fn send_block_event(
         &self,
+        height: BlockHeight,
         timestamp: Timestamp,
         total_acts: u64,
         acts: Vec<Act>,
@@ -23,13 +24,14 @@ impl MsgToProxySender {
     ) -> bool {
         self.sender
             .send_msg(MsgToProxy::BlockEvent(Self::block_event(
-                timestamp, total_acts, acts, ue_txs,
+                height, timestamp, total_acts, acts, ue_txs,
             )))
     }
 }
 
 impl MsgToProxySender {
     fn block_event(
+        height: BlockHeight,
         timestamp: Timestamp,
         total_acts: u64,
         acts: Vec<Act>,
@@ -49,6 +51,7 @@ impl MsgToProxySender {
         let mut ue_events = Vec::new();
         for ue_tx in ue_txs {
             ue_events.push(UpdateEntityEvent {
+                proto: ue_tx.proto,
                 model: ue_tx.model,
                 req_id: ue_tx.req_id,
                 entity_ids: ue_tx.entities.into_iter().map(|entity| entity.id).collect(),
@@ -56,6 +59,7 @@ impl MsgToProxySender {
         }
 
         BlockEvent {
+            height,
             timestamp,
             act_events,
             ue_events,

@@ -60,7 +60,8 @@ fn random_act() -> Act {
     }
 
     Act {
-        kind: "post".to_owned(),
+        action: "post".to_owned(),
+        proto: "proto1".to_owned(),
         model: "model1".to_owned(),
         data: Vec::new(),
     }

@@ -3,7 +3,7 @@ mod blockchain_test;
 use self::blockchain_test::*;
 
 use tokio::sync::mpsc;
-use vintage_msg::{ MsgToBlockChain, MsgToNetwork, MsgToProxy, OverlordMsgBlock};
+use vintage_msg::{MsgToBlockChain, MsgToNetwork, MsgToProxy, OverlordMsgBlock};
 
 #[allow(dead_code)]
 pub fn start_vintage_test(

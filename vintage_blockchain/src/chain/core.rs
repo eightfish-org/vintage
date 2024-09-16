@@ -80,7 +80,12 @@ impl BlockChainCore {
         ))
     }
 
-    pub(crate) async fn check_block(&self, height: u64, block: &Block, hash: &Hashed) -> anyhow::Result<()> {
+    pub(crate) async fn check_block(
+        &self,
+        height: u64,
+        block: &Block,
+        hash: &Hashed,
+    ) -> anyhow::Result<()> {
         // prev block
         let prev_block = self.get_block(height - 1).await?;
 
@@ -150,7 +155,7 @@ impl BlockChainCore {
             self.tx_pool.guard().remove_acts(&act_ids);
         }
         self.proxy_msg_sender
-            .send_block_event(timestamp, total_acts, acts, ue_txs);
+            .send_block_event(height, timestamp, total_acts, acts, ue_txs);
 
         Ok(())
     }

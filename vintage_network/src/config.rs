@@ -12,7 +12,7 @@ pub struct NodeConfig {
     pub block_interval: u64,
 }
 
-impl NodeConfig{
+impl NodeConfig {
     pub fn get_number_of_node(&self) -> usize {
         // Add peer nodes
         let number_of_peers = self.peers.len();

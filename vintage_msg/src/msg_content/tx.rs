@@ -3,7 +3,8 @@ use digest::Digest;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-pub type ActionKind = String;
+pub type Action = String;
+pub type Proto = String;
 pub type Model = String;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -11,7 +12,8 @@ pub type Model = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Act {
-    pub kind: ActionKind,
+    pub action: Action,
+    pub proto: Proto,
     pub model: Model,
     pub data: Vec<u8>,
 }
@@ -19,7 +21,8 @@ pub struct Act {
 impl CalcHash for Act {
     fn calc_hash(&self) -> Hashed {
         let mut hasher = Sha256::new();
-        hasher.update(&self.kind);
+        hasher.update(&self.action);
+        hasher.update(&self.proto);
         hasher.update(&self.model);
         hasher.update(&self.data);
         hasher.into()
@@ -42,6 +45,7 @@ pub type ReqId = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateEntityTx {
+    pub proto: Proto,
     pub model: Model,
     pub req_id: ReqId,
     pub entities: Vec<Entity>,
@@ -50,6 +54,7 @@ pub struct UpdateEntityTx {
 impl CalcHash for UpdateEntityTx {
     fn calc_hash(&self) -> Hashed {
         let mut hasher = Sha256::new();
+        hasher.update(&self.proto);
         hasher.update(&self.model);
         hasher.update(&self.req_id);
         for entity in &self.entities {

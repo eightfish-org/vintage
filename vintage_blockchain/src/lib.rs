@@ -17,10 +17,10 @@ pub use self::service::*;
 pub(crate) use self::tx::*;
 
 use serde::{Deserialize, Serialize};
-use vintage_network::config::NodeConfig;
 use std::sync::Arc;
 use vintage_msg::BlockChainMsgChannels;
 use vintage_network::client::NetworkClient;
+use vintage_network::config::NodeConfig;
 use vintage_utils::ServiceStarter;
 
 const ACT_POOL_CAPACITY: usize = 1000;

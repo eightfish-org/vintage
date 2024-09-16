@@ -5,15 +5,15 @@ use vintage_blockchain::{
 };
 use vintage_msg::{BlockChainMsgChannels, ProxyMsgChannels};
 use vintage_network::{client::NetworkClient, config::NodeConfig};
-use vintage_proxy::{Proxy, ProxyConfig, ProxyInboundService, ProxyOutboundService};
+use vintage_proxy::{Gate2Vin, Proxy, ProxyConfig, Vin2Worker};
 use vintage_utils::ServiceStarter;
 
 #[allow(dead_code)]
 pub struct Vintage {
     blockchain_service: ServiceStarter<BlockChainService>,
     block_sync_service: ServiceStarter<BlockSyncService>,
-    proxy_inbound_service: ServiceStarter<ProxyInboundService<BlockChainApiImpl>>,
-    proxy_outbound_service: ServiceStarter<ProxyOutboundService>,
+    proxy_inbound_service: ServiceStarter<Gate2Vin<BlockChainApiImpl>>,
+    proxy_outbound_service: ServiceStarter<Vin2Worker>,
 }
 
 impl Vintage {

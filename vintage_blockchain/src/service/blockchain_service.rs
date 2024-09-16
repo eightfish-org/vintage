@@ -117,9 +117,13 @@ impl BlockChainService {
             match self.db.get_block(req.begin_height + index).await {
                 Ok(block) => {
                     hash_list.push(block.hash);
-                },
+                }
                 Err(e) => {
-                    log::info!("Failed to get block at height {}: error:{:?}, break", req.begin_height + index, e);
+                    log::info!(
+                        "Failed to get block at height {}: error:{:?}, break",
+                        req.begin_height + index,
+                        e
+                    );
                     break;
                 }
             }

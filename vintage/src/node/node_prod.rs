@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 use vintage_blockchain::BlockConsensusImpl;
-use vintage_consensus::{Validator};
+use vintage_consensus::Validator;
 use vintage_msg::{ConsensusMsgChannels, NetworkMsgChannels};
 use vintage_network::config::NodeConfig;
 use vintage_network::request::ArcNetworkRequestMgr;
@@ -24,11 +24,7 @@ impl VintageNode {
     ) -> anyhow::Result<ServiceStarter<Self>> {
         let node = Node::create(&config, network_chn, request_mgr).await?;
 
-        let validator = Validator::create(
-            &config,
-            consensus_chn,
-            block_consensus,
-        ).await?;
+        let validator = Validator::create(&config, consensus_chn, block_consensus).await?;
 
         Ok(ServiceStarter::new(Self {
             config,

@@ -62,7 +62,7 @@ pub fn msg_channels() -> (
             msg_receiver: blockchain_msg_receiver,
             proxy_msg_sender,
             network_msg_sender: network_msg_sender.clone(),
-            block_synced_sender
+            block_synced_sender,
         },
         ProxyMsgChannels {
             msg_receiver: proxy_msg_receiver,
@@ -71,7 +71,7 @@ pub fn msg_channels() -> (
         ConsensusMsgChannels {
             msg_receiver: consensus_msg_receiver,
             network_msg_sender,
-            block_synced_receiver
+            block_synced_receiver,
         },
         NetworkMsgChannels {
             msg_receiver: network_msg_receiver,

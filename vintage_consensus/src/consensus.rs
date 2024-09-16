@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use crate::BlockConsensus;
+use anyhow::anyhow;
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use creep::Context;
@@ -12,10 +13,9 @@ use overlord::{Consensus, Crypto, DurationConfig, Overlord, OverlordHandler, Wal
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use anyhow::anyhow;
 use tokio::sync::mpsc;
-use vintage_msg::{Block, ConsensusMsgChannels, OverlordMsgBlock};
 use vintage_msg::MsgToNetwork;
+use vintage_msg::{Block, ConsensusMsgChannels, OverlordMsgBlock};
 use vintage_network::config::NodeConfig;
 
 lazy_static! {
@@ -361,7 +361,7 @@ where
                     Some(msg) => {
                         log::info!("====Sync Block receive new height: {}", msg);
                         s.set_height(msg)
-                    },
+                    }
                     None => {
                         eprintln!("receive nothing");
                     }
@@ -370,11 +370,11 @@ where
         });
 
         self.clone()
-        .overlord
-        .run(0, interval, node_list, timer_config)
-        .await
-        .unwrap();
-    
+            .overlord
+            .run(0, interval, node_list, timer_config)
+            .await
+            .unwrap();
+
         spawned_task.await.unwrap();
         block_sync_task.await.unwrap();
         Ok(())
