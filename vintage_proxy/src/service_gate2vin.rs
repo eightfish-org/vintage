@@ -1,12 +1,12 @@
 use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_UPDATE_INDEX};
+use crate::io_object::read_msg;
 use crate::{payload_json, EntitiesPayload, InputOutputObject};
 use crate::{GATE_2_VIN, VIN_2_WORKER};
 use async_trait::async_trait;
-use futures::StreamExt;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
+use vintage_msg::{ActTx, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
 
 pub struct Gate2Vin<TApi> {
@@ -42,12 +42,7 @@ where
         let mut pubsub_stream = pubsub.on_message();
 
         loop {
-            let msg = pubsub_stream.next().await;
-            println!("received msg from channel {}: {:?}", GATE_2_VIN, msg);
-
-            let msg_payload: Vec<u8> = msg.unwrap().get_payload()?;
-            let msg_obj: InputOutputObject = serde_json::from_slice(&msg_payload).unwrap();
-            println!("from redis: {:?}", msg_obj);
+            let msg_obj = read_msg(&mut pubsub_stream, GATE_2_VIN).await?;
 
             if &msg_obj.action == ACTION_POST {
                 self.post(msg_obj);
@@ -68,7 +63,7 @@ where
 {
     fn post(&self, object: InputOutputObject) {
         self.blockchain_msg_sender
-            .send_msg(MsgToBlockChain::Act(Act {
+            .send_msg(MsgToBlockChain::ActTx(ActTx {
                 action: object.action,
                 proto: object.proto,
                 model: object.model,

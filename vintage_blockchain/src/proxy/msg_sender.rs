@@ -1,9 +1,8 @@
-use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 use vintage_msg::{
-    Act, ActEvent, BlockEvent, BlockHeight, Hashed, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
+    ActEvent, ActTx, BlockEvent, BlockHeight, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
 };
-use vintage_utils::{SendMsg, Timestamp};
+use vintage_utils::{CalcHash, SendMsg, Timestamp};
 
 pub(crate) struct MsgToProxySender {
     sender: mpsc::Sender<MsgToProxy>,
@@ -18,13 +17,17 @@ impl MsgToProxySender {
         &self,
         height: BlockHeight,
         timestamp: Timestamp,
-        total_acts: u64,
-        acts: Vec<Act>,
+        total_act_txs: u64,
+        act_txs: Vec<ActTx>,
         ue_txs: Vec<UpdateEntityTx>,
     ) -> bool {
         self.sender
             .send_msg(MsgToProxy::BlockEvent(Self::block_event(
-                height, timestamp, total_acts, acts, ue_txs,
+                height,
+                timestamp,
+                total_act_txs,
+                act_txs,
+                ue_txs,
             )))
     }
 }
@@ -33,18 +36,18 @@ impl MsgToProxySender {
     fn block_event(
         height: BlockHeight,
         timestamp: Timestamp,
-        total_acts: u64,
-        acts: Vec<Act>,
+        total_act_txs: u64,
+        act_txs: Vec<ActTx>,
         ue_txs: Vec<UpdateEntityTx>,
     ) -> BlockEvent {
-        let mut act_number = total_acts - acts.len() as u64;
+        let mut act_number = total_act_txs - act_txs.len() as u64;
         let mut act_events = Vec::new();
-        for act in acts {
+        for act_tx in act_txs {
             act_number += 1;
             act_events.push(ActEvent {
-                act,
+                act_tx,
                 act_number,
-                random: Self::random(act_number),
+                random: act_number.calc_hash(),
             })
         }
 
@@ -64,11 +67,5 @@ impl MsgToProxySender {
             act_events,
             ue_events,
         }
-    }
-
-    fn random(nonce: u64) -> Hashed {
-        let mut hasher = Sha256::new();
-        hasher.update(nonce.to_be_bytes());
-        hasher.into()
     }
 }

@@ -1,7 +1,7 @@
-use crate::{CalcHash, Hashed};
 use digest::Digest;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use vintage_utils::{CalcHash, Hashed};
 
 pub type Action = String;
 pub type Proto = String;
@@ -11,14 +11,14 @@ pub type Model = String;
 // act
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Act {
+pub struct ActTx {
     pub action: Action,
     pub proto: Proto,
     pub model: Model,
     pub data: Vec<u8>,
 }
 
-impl CalcHash for Act {
+impl CalcHash for ActTx {
     fn calc_hash(&self) -> Hashed {
         let mut hasher = Sha256::new();
         hasher.update(&self.action);
@@ -63,4 +63,24 @@ impl CalcHash for UpdateEntityTx {
         }
         hasher.into()
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// wasm
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WasmId {
+    pub proto: Proto,
+    pub wasm_hash: Hashed,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WasmInfo {
+    pub block_interval: u64,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WasmTx {
+    pub wasm_id: WasmId,
+    pub wasm_info: WasmInfo,
 }

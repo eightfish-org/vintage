@@ -93,12 +93,12 @@ impl Vin2Worker {
             "randomvec": event.random,
         });
 
-        let proto = event.act.proto.clone();
+        let proto = event.act_tx.proto.clone();
         let output = InputOutputObject {
-            action: event.act.action,
-            proto: event.act.proto,
-            model: event.act.model,
-            data: event.act.data,
+            action: event.act_tx.action,
+            proto: event.act_tx.proto,
+            model: event.act_tx.model,
+            data: event.act_tx.data,
             ext: ext.to_string().as_bytes().to_vec(),
         };
 

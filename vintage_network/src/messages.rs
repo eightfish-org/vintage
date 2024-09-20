@@ -25,20 +25,20 @@ pub(crate) enum NetworkMessageContent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkBroadcast {
+pub(crate) struct NetworkBroadcast {
     pub handler: NetworkMsgHandler,
     pub broadcast_content: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkRequest {
+pub(crate) struct NetworkRequest {
     pub handler: NetworkMsgHandler,
     pub request_id: NetworkRequestId,
     pub request_content: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkResponse {
+pub(crate) struct NetworkResponse {
     pub request_id: NetworkRequestId,
     pub response_content: Vec<u8>,
 }

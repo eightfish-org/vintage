@@ -5,10 +5,6 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::fmt::{Display, Formatter};
 
-pub trait CalcHash {
-    fn calc_hash(&self) -> Hashed;
-}
-
 pub const HASH_SIZE: usize = 32;
 pub type HashBytes = [u8; HASH_SIZE];
 const ZERO_HASH: HashBytes = [0; HASH_SIZE];

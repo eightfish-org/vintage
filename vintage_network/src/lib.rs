@@ -318,8 +318,10 @@ impl Node {
                             if let NetworkMessagePayload::Content(content) = message.payload {
                                 match content {
                                     NetworkMessageContent::Broadcast(broadcast) => {
-                                        let msg =
-                                            MsgToBlockChain::Broadcast(broadcast.broadcast_content);
+                                        let msg = MsgToBlockChain::Broadcast(
+                                            peer_listening_addr.unwrap(),
+                                            broadcast.broadcast_content,
+                                        );
                                         match broadcast.handler {
                                             NetworkMsgHandler::BlockChain => {
                                                 log::info!("Send MsgToBlockChain::Broadcast to vintage_blockchain");

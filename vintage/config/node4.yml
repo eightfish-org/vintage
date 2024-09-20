@@ -1,6 +1,7 @@
 dev_mode: true
 blockchain:
   db_path: vintage4.db
+  wasm_db_path: wasm4.db
 proxy:
   redis_addr: redis://127.0.0.1:6379
 node:

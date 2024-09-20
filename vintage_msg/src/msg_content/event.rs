@@ -1,5 +1,5 @@
-use crate::{Act, BlockHeight, EntityId, Hashed, Model, Proto, ReqId};
-use vintage_utils::Timestamp;
+use crate::{ActTx, BlockHeight, EntityId, Model, Proto, ReqId};
+use vintage_utils::{Hashed, Timestamp};
 
 pub struct BlockEvent {
     pub height: BlockHeight,
@@ -9,7 +9,7 @@ pub struct BlockEvent {
 }
 
 pub struct ActEvent {
-    pub act: Act,
+    pub act_tx: ActTx,
     pub act_number: u64,
     pub random: Hashed,
 }

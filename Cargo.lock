@@ -2127,11 +2127,15 @@ dependencies = [
 name = "vintage_utils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bincode 2.0.0-rc.3",
+ "bytes 1.6.0",
+ "digest",
  "log",
  "redb",
  "serde",
+ "sha2",
  "time",
  "tokio 1.38.0",
  "uuid",

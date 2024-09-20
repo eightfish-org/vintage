@@ -5,6 +5,8 @@ pub(crate) const VIN_2_WORKER: &str = "vin2worker";
 
 // dtomcat action
 pub(crate) const ACTION_NEW_BLOCK_HEIGHT: &str = "block_height";
+pub(crate) const ACTION_UPLOAD_WASM: &str = "upload_wasm";
+pub(crate) const ACTION_UPGRADE_WASM: &str = "upgrade_wasm";
 
 // worker:protocol action
 pub(crate) const ACTION_POST: &str = "post";

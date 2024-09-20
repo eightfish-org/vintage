@@ -1,14 +1,15 @@
 use rand::{random, thread_rng, Rng};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, MsgToBlockChain};
+use vintage_msg::{ActTx, MsgToBlockChain};
 use vintage_utils::SendMsg;
 
 pub(super) async fn send_raw_act_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>) {
     loop {
         let millis = thread_rng().gen_range(2000..=3000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
-        sender.send_msg(MsgToBlockChain::Act(random_act()));
+        sender.send_msg(MsgToBlockChain::ActTx(random_act()));
     }
 }
 
@@ -17,6 +18,7 @@ pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>
         let millis = thread_rng().gen_range(500..=1000);
         tokio::time::sleep(Duration::from_millis(millis)).await;
         sender.send_msg(MsgToBlockChain::Broadcast(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000),
             serde_json::to_vec(&random_act()).unwrap(),
         ));
     }
@@ -52,14 +54,14 @@ pub(super) async fn send_block_to_blockchain(_sender: mpsc::Sender<MsgToBlockCha
     }
 }
 
-fn random_act() -> Act {
+fn random_act() -> ActTx {
     let len = thread_rng().gen_range(100..=1000);
     let mut content = Vec::<u8>::with_capacity(len);
     for _ in 0..len {
         content.push(random())
     }
 
-    Act {
+    ActTx {
         action: "post".to_owned(),
         proto: "proto1".to_owned(),
         model: "model1".to_owned(),

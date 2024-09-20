@@ -1,18 +1,20 @@
-use crate::msg_content::Hashed;
-use crate::{Act, UpdateEntityTx};
+use crate::{ActTx, UpdateEntityTx, WasmTx};
 use bytes::Bytes;
 use overlord::Codec;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use vintage_utils::Hashed;
+
 pub type BlockHeight = u64;
 pub type BlockTimestamp = u64;
 pub type BlockHash = Hashed;
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
     pub timestamp: BlockTimestamp,
-    pub acts: Vec<Act>,
+    pub act_txs: Vec<ActTx>,
     pub ue_txs: Vec<UpdateEntityTx>,
+    pub wasm_txs: Vec<WasmTx>,
 }
 
 macro_rules! impl_codec_for {
