@@ -1,6 +1,6 @@
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActEvent, ActTx, BlockEvent, BlockHeight, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
+    ActEvent, ActTx, BlockEvent, BlockHeight, MsgToProxy, UpdateEntityEvent, UpdateEntityTx, WasmId,
 };
 use vintage_utils::{CalcHash, SendMsg, Timestamp};
 
@@ -20,6 +20,7 @@ impl MsgToProxySender {
         total_act_txs: u64,
         act_txs: Vec<ActTx>,
         ue_txs: Vec<UpdateEntityTx>,
+        upgrade_wasm_ids: Vec<WasmId>,
     ) -> bool {
         self.sender
             .send_msg(MsgToProxy::BlockEvent(Self::block_event(
@@ -28,6 +29,7 @@ impl MsgToProxySender {
                 total_act_txs,
                 act_txs,
                 ue_txs,
+                upgrade_wasm_ids,
             )))
     }
 }
@@ -39,6 +41,7 @@ impl MsgToProxySender {
         total_act_txs: u64,
         act_txs: Vec<ActTx>,
         ue_txs: Vec<UpdateEntityTx>,
+        upgrade_wasm_ids: Vec<WasmId>,
     ) -> BlockEvent {
         let mut act_number = total_act_txs - act_txs.len() as u64;
         let mut act_events = Vec::new();
@@ -66,6 +69,7 @@ impl MsgToProxySender {
             timestamp,
             act_events,
             ue_events,
+            upgrade_wasm_ids,
         }
     }
 }

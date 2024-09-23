@@ -12,8 +12,8 @@ where
     TABLE: ReadableTable<RedbBytes, RedbBytes>,
 {
     pub fn check_wasm_tx_not_exists(&self, wasm_id: &WasmId) -> anyhow::Result<()> {
-        let id = wasm_id.bincode_serialize()?;
-        if self.exists(id.as_slice())? {
+        let bytes = wasm_id.bincode_serialize()?;
+        if self.exists(bytes.as_slice())? {
             Err(anyhow::anyhow!(
                 "wasm tx {} {} already exists id db",
                 wasm_id.proto,
@@ -32,8 +32,8 @@ where
     }
 
     pub fn get_wasm_tx(&self, wasm_id: &WasmId) -> anyhow::Result<WasmInfo> {
-        let id = wasm_id.bincode_serialize()?;
-        match self.get(id.as_slice())? {
+        let bytes = wasm_id.bincode_serialize()?;
+        match self.get(bytes.as_slice())? {
             Some(access) => {
                 let (value, _bytes_read) = WasmInfo::bincode_deserialize(access.value())?;
                 Ok(value)
@@ -49,9 +49,9 @@ where
 
 impl<'db, 'txn> WasmTxTableW<'db, 'txn> {
     pub fn insert_wasm_tx(&mut self, wasm_id: &WasmId, wasm_info: &WasmInfo) -> anyhow::Result<()> {
-        let id = wasm_id.bincode_serialize()?;
-        let info = wasm_info.bincode_serialize()?;
-        self.insert(id.as_slice(), info.as_slice())?;
+        let id_bytes = wasm_id.bincode_serialize()?;
+        let info_bytes = wasm_info.bincode_serialize()?;
+        self.insert(id_bytes.as_slice(), info_bytes.as_slice())?;
         Ok(())
     }
 }

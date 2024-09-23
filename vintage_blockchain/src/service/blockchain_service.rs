@@ -96,7 +96,7 @@ impl BlockChainService {
         let (msg, _bytes_read) = BroadcastMsg::bincode_deserialize(&msg_encoded)?;
         match msg {
             BroadcastMsg::ActTx(act_tx) => {
-                let act_tx_id = self.put_act_to_pool(act_tx).await?;
+                let act_tx_id = self.put_act_tx_to_pool(act_tx).await?;
                 log::info!("act tx from network: {}", act_tx_id);
                 Ok(())
             }
@@ -178,14 +178,14 @@ impl BlockChainService {
     }
 
     async fn act_handler(&self, act_tx: ActTx) -> anyhow::Result<()> {
-        let act_tx_id = self.put_act_to_pool(act_tx.clone()).await?;
+        let act_tx_id = self.put_act_tx_to_pool(act_tx.clone()).await?;
         log::info!("act tx from proxy: {}", act_tx_id);
         self.network_msg_sender
             .send_broadcast(&BroadcastMsg::ActTx(act_tx));
         Ok(())
     }
 
-    async fn put_act_to_pool(&self, act_tx: ActTx) -> anyhow::Result<TxId> {
+    async fn put_act_tx_to_pool(&self, act_tx: ActTx) -> anyhow::Result<TxId> {
         let act_tx_id = act_tx.calc_hash();
         {
             if self.tx_pool.act_txs_guard().contains_key(&act_tx_id) {
@@ -214,16 +214,23 @@ impl BlockChainService {
         } = upload_wasm;
 
         let wasm_hash = wasm_binary.calc_hash();
-        self.persist_wasm_binary(wasm_hash.clone(), wasm_binary)
-            .await?;
+        if self
+            .wasm_db
+            .try_insert_wasm_binary(wasm_hash.clone(), wasm_binary)
+            .await?
+        {
+            log::info!("wasm file {} saved", wasm_hash);
+        } else {
+            log::info!("wasm file {} already exists", wasm_hash);
+        }
 
-        self.put_wasm_to_pool(WasmId { proto, wasm_hash }, WasmInfo { block_interval })
+        self.put_wasm_tx_to_pool(WasmId { proto, wasm_hash }, WasmInfo { block_interval })
             .await?;
 
         Ok(())
     }
 
-    async fn put_wasm_to_pool(&self, key: WasmId, info: WasmInfo) -> anyhow::Result<()> {
+    async fn put_wasm_tx_to_pool(&self, key: WasmId, info: WasmInfo) -> anyhow::Result<()> {
         {
             if self.tx_pool.wasm_txs_guard().contains_key(&key) {
                 return Err(anyhow!("wasm tx already exists in pool"));
@@ -234,22 +241,6 @@ impl BlockChainService {
             .await?;
         {
             self.tx_pool.wasm_txs_guard().insert(key, info);
-        }
-        Ok(())
-    }
-
-    async fn persist_wasm_binary(
-        &self,
-        wasm_hash: Hashed,
-        wasm_binary: Vec<u8>,
-    ) -> anyhow::Result<()> {
-        if self.wasm_db.wasm_binary_exists(wasm_hash.clone()).await? {
-            log::info!("wasm file {} already exists", wasm_hash);
-        } else {
-            self.wasm_db
-                .insert_wasm_binary(wasm_hash.clone(), wasm_binary)
-                .await?;
-            log::info!("wasm file {} saved", wasm_hash);
         }
         Ok(())
     }

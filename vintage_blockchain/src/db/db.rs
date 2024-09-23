@@ -115,6 +115,14 @@ impl BlockChainDb {
         let db = self.db.clone();
         spawn_blocking(move || db.get_wasm_tx(&wasm_id)).await?
     }
+
+    pub async fn get_upgrade_wasm_ids(
+        &self,
+        block_height: BlockHeight,
+    ) -> anyhow::Result<Vec<WasmId>> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.get_upgrade_wasm_ids(block_height)).await?
+    }
 }
 
 // write
@@ -140,7 +148,7 @@ impl BlockChainDb {
     ) -> anyhow::Result<()> {
         let db = self.db.clone();
         spawn_blocking(move || {
-            db.commit_block(height, hash, state, act_tx_ids, ue_tx_ids, wasm_ids, &block)
+            db.commit_block(height, hash, state, act_tx_ids, ue_tx_ids, wasm_ids, block)
         })
         .await?
     }

@@ -6,6 +6,7 @@ mod network;
 mod proxy;
 mod service;
 mod tx;
+mod wasm;
 mod wasm_db;
 
 pub use self::api::*;
@@ -16,6 +17,7 @@ pub(crate) use self::network::*;
 pub(crate) use self::proxy::*;
 pub use self::service::*;
 pub(crate) use self::tx::*;
+pub use self::wasm::*;
 pub(crate) use self::wasm_db::*;
 
 use serde::{Deserialize, Serialize};
@@ -49,6 +51,7 @@ impl BlockChain {
         BlockChainApiImpl,
         ServiceStarter<BlockChainService>,
         ServiceStarter<BlockSyncService>,
+        ServiceStarter<DownloadWasmTasks>,
     )> {
         let blockchain_db = BlockChainDb::new(create_blockchain_db_inner(config.db_path).await?);
         let wasm_db = WasmDb::new(create_wasm_db_inner(config.wasm_db_path).await?);
@@ -60,6 +63,7 @@ impl BlockChain {
 
         let blockchain_core = Arc::new(tokio::sync::Mutex::new(BlockChainCore::new(
             blockchain_db.clone(),
+            wasm_db.clone(),
             tx_pool.clone(),
             proxy_msg_sender,
         )));
@@ -67,17 +71,19 @@ impl BlockChain {
             BlockSyncService::new(block_interval, client, channels.block_synced_sender);
         let blockchain_service = BlockChainService::new(
             blockchain_db.clone(),
-            wasm_db,
+            wasm_db.clone(),
             tx_pool,
             channels.msg_receiver,
             network_msg_sender,
         );
+        let download_wasm_tasks = DownloadWasmTasks::new(wasm_db);
 
         Ok((
             BlockConsensusImpl::new(blockchain_core.clone()),
             BlockChainApiImpl::new(blockchain_db),
             ServiceStarter::new(blockchain_service),
             ServiceStarter::new_with_input(block_sync_service, blockchain_core),
+            ServiceStarter::new(download_wasm_tasks),
         ))
     }
 }

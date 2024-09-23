@@ -2,10 +2,13 @@ use crate::chain::BlockState;
 use crate::db::{
     ActTxTableR, ActTxTableW, BlockHeightTableR, BlockHeightTableW, BlockInDb, BlockTableR,
     BlockTableW, EntityTableR, EntityTableW, UpdateEntityTxPoolTableR, UpdateEntityTxPoolTableW,
-    UpdateEntityTxTableR, UpdateEntityTxTableW, WasmTxTableR, WasmTxTableW,
+    UpdateEntityTxTableR, UpdateEntityTxTableW, UpgradeWasmTableR, UpgradeWasmTableW, WasmTxTableR,
+    WasmTxTableW,
 };
 use crate::tx::TxId;
 use redb::Database;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::path::Path;
 use vintage_msg::{
     Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, UpdateEntityTx, WasmId, WasmInfo,
@@ -148,6 +151,12 @@ impl BlockChainDbInner {
         let table = WasmTxTableR::open_table(&db_read)?;
         table.get_wasm_tx(wasm_id)
     }
+
+    pub fn get_upgrade_wasm_ids(&self, block_height: BlockHeight) -> anyhow::Result<Vec<WasmId>> {
+        let db_read = self.database.begin_read()?;
+        let table = UpgradeWasmTableR::open_table(&db_read)?;
+        table.get_upgrade_wasm_ids(block_height)
+    }
 }
 
 // write
@@ -176,7 +185,7 @@ impl BlockChainDbInner {
         act_tx_ids: Vec<TxId>,
         ue_tx_ids: Vec<TxId>,
         wasm_ids: Vec<WasmId>,
-        block: &Block,
+        block: Block,
     ) -> anyhow::Result<()> {
         let db_write = self.database.begin_write()?;
 
@@ -204,10 +213,27 @@ impl BlockChainDbInner {
                 }
             }
         }
+        let mut height_to_wasm_ids: HashMap<BlockHeight, Vec<WasmId>> = HashMap::new();
         {
             let mut table_wasm_tx = WasmTxTableW::open_table(&db_write)?;
-            for wasm_tx in &block.wasm_txs {
+            for wasm_tx in block.wasm_txs {
                 table_wasm_tx.insert_wasm_tx(&wasm_tx.wasm_id, &wasm_tx.wasm_info)?;
+                match height_to_wasm_ids.entry(height + wasm_tx.wasm_info.block_interval) {
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().push(wasm_tx.wasm_id);
+                    }
+                    Entry::Vacant(entry) => {
+                        let mut wasm_ids: Vec<WasmId> = Vec::new();
+                        wasm_ids.push(wasm_tx.wasm_id);
+                        entry.insert(wasm_ids);
+                    }
+                }
+            }
+        }
+        {
+            let mut table = UpgradeWasmTableW::open_table(&db_write)?;
+            for (future_height, wasm_ids) in height_to_wasm_ids {
+                table.insert_upgrade_wasm_ids(future_height, wasm_ids)?;
             }
         }
 

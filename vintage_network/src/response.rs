@@ -42,7 +42,7 @@ impl NetworkResponseWriter for NetworkSingleResponse {
 impl NetworkResponseReader for NetworkSingleResponse {
     async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
         let data = tokio::time::timeout(timeout, self.data.clone_data()).await?;
-        Ok((Default::default(), data))
+        Ok((Vec::default(), data))
     }
 }
 

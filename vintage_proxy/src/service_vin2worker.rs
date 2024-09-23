@@ -1,4 +1,4 @@
-use crate::constants::{ACTION_NEW_BLOCK_HEIGHT, ACTION_UPDATE_INDEX};
+use crate::constants::{ACTION_NEW_BLOCK_HEIGHT, ACTION_UPDATE_INDEX, ACTION_UPGRADE_WASM};
 use crate::VIN_2_WORKER;
 use crate::{payload_json, InputOutputObject};
 use async_trait::async_trait;
@@ -6,7 +6,7 @@ use redis::aio::Connection;
 use redis::AsyncCommands;
 use serde_json::json;
 use tokio::sync::mpsc;
-use vintage_msg::{ActEvent, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent};
+use vintage_msg::{ActEvent, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, WasmId};
 use vintage_utils::{Service, Timestamp};
 
 pub struct Vin2Worker {
@@ -40,6 +40,9 @@ impl Service for Vin2Worker {
                             self.on_act_event(event.timestamp, act_event).await;
                         }
                         self.on_block_height_event(event.height).await;
+                        for wasm_id in event.upgrade_wasm_ids {
+                            self.on_upgrade_wasm_event(wasm_id).await;
+                        }
                     }
                 },
                 None => {
@@ -60,6 +63,17 @@ impl Vin2Worker {
             ext: vec![],
         };
 
+        self.publish_vin_2_worker(None, &output).await;
+    }
+
+    async fn on_upgrade_wasm_event(&mut self, wasm_id: WasmId) {
+        let output = InputOutputObject {
+            action: ACTION_UPGRADE_WASM.to_string(),
+            proto: wasm_id.proto,
+            model: "".to_owned(),
+            data: wasm_id.wasm_hash.as_bytes().into(),
+            ext: vec![],
+        };
         self.publish_vin_2_worker(None, &output).await;
     }
 

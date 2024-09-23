@@ -1,21 +1,22 @@
-use crate::chain::BlockState;
-use crate::db::{BlockChainDb, BlockInDb};
-use crate::proxy::MsgToProxySender;
-use crate::tx::{
-    get_act_txs_from_pool, get_wasm_txs_from_pool, remove_txs_from_pool, TxId, TxPool,
-};
+use crate::BlockState;
+use crate::DownloadWasmTask;
+use crate::MsgToProxySender;
+use crate::WasmDb;
+use crate::{get_act_txs_from_pool, get_wasm_txs_from_pool, remove_txs_from_pool, TxId, TxPool};
+use crate::{BlockChainDb, BlockInDb};
 use crate::{MAX_ACT_COUNT_PER_BLOCK, MAX_UE_TX_COUNT_PER_BLOCK};
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use std::time::Duration;
 use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, WasmId, WasmTx};
-use vintage_utils::{current_timestamp, CalcHash, Hashed, Timestamp};
+use vintage_utils::{current_timestamp, CalcHash, Hashed, ServiceStarter, Timestamp};
 
 pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
 
 pub struct BlockChainCore {
     blockchain_db: BlockChainDb,
+    wasm_db: WasmDb,
     tx_pool: Arc<TxPool>,
     proxy_msg_sender: MsgToProxySender,
     last_commited_time: Timestamp,
@@ -24,11 +25,13 @@ pub struct BlockChainCore {
 impl BlockChainCore {
     pub(crate) fn new(
         blockchain_db: BlockChainDb,
+        wasm_db: WasmDb,
         tx_pool: Arc<TxPool>,
         proxy_msg_sender: MsgToProxySender,
     ) -> Self {
         Self {
             blockchain_db,
+            wasm_db,
             tx_pool,
             proxy_msg_sender,
             last_commited_time: 0,
@@ -150,6 +153,7 @@ impl BlockChainCore {
         let block_hash_cloned = hash.clone();
         let timestamp = block.timestamp;
         let total_act_txs = state.total_act_txs;
+        self.try_insert_download_wasm_tasks(&wasm_ids).await;
         self.blockchain_db
             .commit_block(
                 height,
@@ -179,8 +183,15 @@ impl BlockChainCore {
         {
             remove_txs_from_pool(&mut self.tx_pool.wasm_txs_guard(), &wasm_ids);
         }
-        self.proxy_msg_sender
-            .send_block_event(height, timestamp, total_act_txs, act_txs, ue_txs);
+        let upgrade_wasm_ids = self.blockchain_db.get_upgrade_wasm_ids(height).await?;
+        self.proxy_msg_sender.send_block_event(
+            height,
+            timestamp,
+            total_act_txs,
+            act_txs,
+            ue_txs,
+            upgrade_wasm_ids,
+        );
 
         Ok(())
     }
@@ -290,5 +301,26 @@ impl BlockChainCore {
         }
         hasher.update(prev_hash);
         hasher.into()
+    }
+
+    async fn try_insert_download_wasm_tasks(&self, wasm_ids: &[WasmId]) {
+        for wasm_id in wasm_ids {
+            match self
+                .wasm_db
+                .try_insert_download_wasm_task(wasm_id.wasm_hash.clone())
+                .await
+            {
+                Ok(_) => {
+                    ServiceStarter::new(DownloadWasmTask::new(wasm_id.wasm_hash.clone())).start();
+                }
+                Err(err) => {
+                    log::error!(
+                        "try_insert_download_wasm_task {} err: {:?}",
+                        wasm_id.wasm_hash,
+                        err
+                    );
+                }
+            }
+        }
     }
 }

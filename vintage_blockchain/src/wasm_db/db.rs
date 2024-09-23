@@ -5,7 +5,7 @@ use tokio::task::spawn_blocking;
 use vintage_utils::Hashed;
 
 #[derive(Clone)]
-pub(crate) struct WasmDb {
+pub struct WasmDb {
     db: Arc<WasmDbInner>,
 }
 
@@ -38,12 +38,31 @@ impl WasmDb {
 
 // write
 impl WasmDb {
-    pub async fn insert_wasm_binary(
+    pub async fn try_insert_wasm_binary(
+        &self,
+        wasm_hash: Hashed,
+        wasm_binary: Vec<u8>,
+    ) -> anyhow::Result<bool> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.try_insert_wasm_binary(&wasm_hash, &wasm_binary)).await?
+    }
+
+    pub async fn try_insert_download_wasm_task(&self, wasm_hash: Hashed) -> anyhow::Result<()> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.try_insert_download_wasm_task(&wasm_hash)).await?
+    }
+
+    pub async fn get_download_wasm_tasks(&self) -> anyhow::Result<Vec<Hashed>> {
+        let db = self.db.clone();
+        spawn_blocking(move || db.get_download_wasm_tasks()).await?
+    }
+
+    pub async fn finish_download_wasm_task(
         &self,
         wasm_hash: Hashed,
         wasm_binary: Vec<u8>,
     ) -> anyhow::Result<()> {
         let db = self.db.clone();
-        spawn_blocking(move || db.insert_wasm_binary(&wasm_hash, &wasm_binary)).await?
+        spawn_blocking(move || db.finish_download_wasm_task(&wasm_hash, &wasm_binary)).await?
     }
 }
