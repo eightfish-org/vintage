@@ -1,9 +1,11 @@
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActEvent, ActTx, BlockEvent, BlockHeight, MsgToProxy, UpdateEntityEvent, UpdateEntityTx, WasmId,
+    ActEvent, ActTx, BlockEvent, BlockHeight, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
+    WasmHash, WasmId,
 };
 use vintage_utils::{CalcHash, SendMsg, Timestamp};
 
+#[derive(Clone)]
 pub(crate) struct MsgToProxySender {
     sender: mpsc::Sender<MsgToProxy>,
 }
@@ -31,6 +33,11 @@ impl MsgToProxySender {
                 ue_txs,
                 upgrade_wasm_ids,
             )))
+    }
+
+    pub fn send_wasm_binary(&self, wasm_hash: WasmHash, wash_binary: Vec<u8>) -> bool {
+        self.sender
+            .send_msg(MsgToProxy::WasmBinary(wasm_hash, wash_binary))
     }
 }
 

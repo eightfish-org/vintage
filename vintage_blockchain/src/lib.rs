@@ -58,25 +58,29 @@ impl BlockChain {
         let tx_pool = Arc::new(TxPool::new(ACT_POOL_CAPACITY, WASM_POOL_CAPACITY));
         let network_msg_sender = MsgToNetworkSender::new(channels.network_msg_sender);
         let proxy_msg_sender = MsgToProxySender::new(channels.proxy_msg_sender);
-        let client =
-            BlockChainNetworkClient::new(NetworkClientWrapper::new(client, active_number_of_nodes));
+        let client = Arc::new(BlockChainNetworkClient::new(NetworkClientWrapper::new(
+            client,
+            active_number_of_nodes,
+        )));
 
         let blockchain_core = Arc::new(tokio::sync::Mutex::new(BlockChainCore::new(
             blockchain_db.clone(),
             wasm_db.clone(),
             tx_pool.clone(),
-            proxy_msg_sender,
+            client.clone(),
+            proxy_msg_sender.clone(),
         )));
         let block_sync_service =
-            BlockSyncService::new(block_interval, client, channels.block_synced_sender);
+            BlockSyncService::new(block_interval, client.clone(), channels.block_synced_sender);
         let blockchain_service = BlockChainService::new(
             blockchain_db.clone(),
             wasm_db.clone(),
             tx_pool,
             channels.msg_receiver,
+            proxy_msg_sender.clone(),
             network_msg_sender,
         );
-        let download_wasm_tasks = DownloadWasmTasks::new(wasm_db);
+        let download_wasm_tasks = DownloadWasmTasks::new(wasm_db, proxy_msg_sender, client);
 
         Ok((
             BlockConsensusImpl::new(blockchain_core.clone()),

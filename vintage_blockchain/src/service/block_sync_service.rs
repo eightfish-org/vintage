@@ -1,20 +1,21 @@
 use crate::chain::ArcBlockChainCore;
 use crate::network::{BlockChainNetworkClient, ReqBlock, ReqBlockHash};
 use async_trait::async_trait;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use vintage_utils::{current_timestamp, SendMsg, Service};
 
 pub struct BlockSyncService {
     interval: u64,
-    client: BlockChainNetworkClient,
+    client: Arc<BlockChainNetworkClient>,
     block_synced_sender: mpsc::Sender<u64>,
 }
 
 impl BlockSyncService {
     pub(crate) fn new(
         block_interval: u64,
-        client: BlockChainNetworkClient,
+        client: Arc<BlockChainNetworkClient>,
         block_synced_sender: mpsc::Sender<u64>,
     ) -> Self {
         Self {
@@ -94,11 +95,11 @@ impl BlockSyncService {
         let rsp_block = self
             .client
             .request_block(
-                node_id,
                 ReqBlock {
                     begin_height: block_height + 1,
                     count: block_count,
                 },
+                node_id,
             )
             .await?;
         if rsp_block.block_list.len() != block_count as usize {

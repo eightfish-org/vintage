@@ -68,10 +68,12 @@ impl CalcHash for UpdateEntityTx {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // wasm
 
+pub type WasmHash = Hashed;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WasmId {
     pub proto: Proto,
-    pub wasm_hash: Hashed,
+    pub wasm_hash: WasmHash,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]

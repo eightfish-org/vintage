@@ -1,7 +1,6 @@
 use crate::db::BlockChainDb;
-use crate::network::{
-    BroadcastMsg, MsgToNetworkSender, ReqBlock, ReqBlockHash, RequestMsg, RspBlock, RspBlockHash,
-};
+use crate::network::{BroadcastMsg, MsgToNetworkSender, ReqBlock, ReqBlockHash, RequestMsg};
+use crate::proxy::MsgToProxySender;
 use crate::tx::{TxId, TxPool};
 use crate::wasm_db::WasmDb;
 use anyhow::anyhow;
@@ -9,16 +8,17 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActTx, Block, MsgToBlockChain, NetworkRequestId, NodeId, UpdateEntityTx, UploadWasm, WasmId,
-    WasmInfo,
+    ActTx, Block, BlockHash, MsgToBlockChain, NetworkRequestId, NodeId, UpdateEntityTx, UploadWasm,
+    WasmHash, WasmId, WasmInfo,
 };
-use vintage_utils::{BincodeDeserialize, CalcHash, Hashed, Service};
+use vintage_utils::{BincodeDeserialize, CalcHash, Service};
 
 pub struct BlockChainService {
     blockchain_db: BlockChainDb,
     wasm_db: WasmDb,
     tx_pool: Arc<TxPool>,
     msg_receiver: mpsc::Receiver<MsgToBlockChain>,
+    proxy_msg_sender: MsgToProxySender,
     network_msg_sender: MsgToNetworkSender,
 }
 
@@ -28,6 +28,7 @@ impl BlockChainService {
         wasm_db: WasmDb,
         tx_pool: Arc<TxPool>,
         msg_receiver: mpsc::Receiver<MsgToBlockChain>,
+        proxy_msg_sender: MsgToProxySender,
         network_msg_sender: MsgToNetworkSender,
     ) -> Self {
         Self {
@@ -35,6 +36,7 @@ impl BlockChainService {
             wasm_db,
             tx_pool,
             msg_receiver,
+            proxy_msg_sender,
             network_msg_sender,
         }
     }
@@ -116,6 +118,14 @@ impl BlockChainService {
                     .await
             }
             RequestMsg::ReqBlock(req) => self.request_block_handler(node_id, request_id, req).await,
+            RequestMsg::ReqWasmExists(wasm_hash) => {
+                self.request_wasm_exists_handler(node_id, request_id, wasm_hash)
+                    .await
+            }
+            RequestMsg::ReqWasm(wasm_hash) => {
+                self.request_wasm_handler(node_id, request_id, wasm_hash)
+                    .await
+            }
         }
     }
 
@@ -126,7 +136,7 @@ impl BlockChainService {
         req: ReqBlockHash,
     ) -> anyhow::Result<()> {
         log::debug!("request_block_hash_handler from node: {}", node_id);
-        let mut hash_list: Vec<Hashed> = Vec::new();
+        let mut hash_list: Vec<BlockHash> = Vec::new();
         for index in 0..req.count {
             match self.blockchain_db.get_block(req.begin_height + index).await {
                 Ok(block) => {
@@ -142,9 +152,8 @@ impl BlockChainService {
                 }
             }
         }
-        let rsp = RspBlockHash { hash_list };
         self.network_msg_sender
-            .send_response(node_id, request_id, rsp);
+            .send_response(node_id, request_id, hash_list);
         Ok(())
     }
 
@@ -163,9 +172,32 @@ impl BlockChainService {
                 .await?;
             block_list.push(block);
         }
-        let rsp = RspBlock { block_list };
         self.network_msg_sender
-            .send_response(node_id, request_id, rsp);
+            .send_response(node_id, request_id, block_list);
+        Ok(())
+    }
+
+    async fn request_wasm_exists_handler(
+        &self,
+        node_id: NodeId,
+        request_id: NetworkRequestId,
+        wasm_hash: WasmHash,
+    ) -> anyhow::Result<()> {
+        let exists = self.wasm_db.wasm_binary_exists(wasm_hash).await?;
+        self.network_msg_sender
+            .send_response(node_id, request_id, exists);
+        Ok(())
+    }
+
+    async fn request_wasm_handler(
+        &self,
+        node_id: NodeId,
+        request_id: NetworkRequestId,
+        wasm_hash: WasmHash,
+    ) -> anyhow::Result<()> {
+        let wasm_binary = self.wasm_db.get_wasm_binary(wasm_hash).await?;
+        self.network_msg_sender
+            .send_response(node_id, request_id, wasm_binary);
         Ok(())
     }
 }
@@ -216,10 +248,12 @@ impl BlockChainService {
         let wasm_hash = wasm_binary.calc_hash();
         if self
             .wasm_db
-            .try_insert_wasm_binary(wasm_hash.clone(), wasm_binary)
+            .try_insert_wasm_binary(wasm_hash.clone(), wasm_binary.clone())
             .await?
         {
             log::info!("wasm file {} saved", wasm_hash);
+            self.proxy_msg_sender
+                .send_wasm_binary(wasm_hash.clone(), wasm_binary);
         } else {
             log::info!("wasm file {} already exists", wasm_hash);
         }

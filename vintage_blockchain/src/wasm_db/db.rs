@@ -2,7 +2,7 @@ use crate::wasm_db::WasmDbInner;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
-use vintage_utils::Hashed;
+use vintage_msg::WasmHash;
 
 #[derive(Clone)]
 pub struct WasmDb {
@@ -25,12 +25,12 @@ impl WasmDb {
 
 // read
 impl WasmDb {
-    pub async fn wasm_binary_exists(&self, wasm_hash: Hashed) -> anyhow::Result<bool> {
+    pub async fn wasm_binary_exists(&self, wasm_hash: WasmHash) -> anyhow::Result<bool> {
         let db = self.db.clone();
         spawn_blocking(move || db.wasm_binary_exists(&wasm_hash)).await?
     }
 
-    pub async fn get_wasm_binary(&self, wasm_hash: Hashed) -> anyhow::Result<Vec<u8>> {
+    pub async fn get_wasm_binary(&self, wasm_hash: WasmHash) -> anyhow::Result<Vec<u8>> {
         let db = self.db.clone();
         spawn_blocking(move || db.get_wasm_binary(&wasm_hash)).await?
     }
@@ -40,26 +40,26 @@ impl WasmDb {
 impl WasmDb {
     pub async fn try_insert_wasm_binary(
         &self,
-        wasm_hash: Hashed,
+        wasm_hash: WasmHash,
         wasm_binary: Vec<u8>,
     ) -> anyhow::Result<bool> {
         let db = self.db.clone();
         spawn_blocking(move || db.try_insert_wasm_binary(&wasm_hash, &wasm_binary)).await?
     }
 
-    pub async fn try_insert_download_wasm_task(&self, wasm_hash: Hashed) -> anyhow::Result<()> {
+    pub async fn try_insert_download_wasm_task(&self, wasm_hash: WasmHash) -> anyhow::Result<()> {
         let db = self.db.clone();
         spawn_blocking(move || db.try_insert_download_wasm_task(&wasm_hash)).await?
     }
 
-    pub async fn get_download_wasm_tasks(&self) -> anyhow::Result<Vec<Hashed>> {
+    pub async fn get_download_wasm_tasks(&self) -> anyhow::Result<Vec<WasmHash>> {
         let db = self.db.clone();
         spawn_blocking(move || db.get_download_wasm_tasks()).await?
     }
 
     pub async fn finish_download_wasm_task(
         &self,
-        wasm_hash: Hashed,
+        wasm_hash: WasmHash,
         wasm_binary: Vec<u8>,
     ) -> anyhow::Result<()> {
         let db = self.db.clone();

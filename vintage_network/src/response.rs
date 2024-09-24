@@ -18,53 +18,107 @@ pub trait NetworkResponseReader: Send + Sync {
     async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)>;
 }
 
-pub struct NetworkSingleResponse {
-    data: Data<Vec<u8>>,
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// NetworkResponseSimple
+
+pub struct NetworkResponseSimple {
+    node_id_and_data: Data<Option<(NodeId, Vec<u8>)>>,
 }
 
-impl NetworkSingleResponse {
+impl NetworkResponseSimple {
     pub fn new() -> Self {
         Self {
-            data: Data::new(Default::default()),
+            node_id_and_data: Data::new(None),
         }
     }
 }
 
-impl NetworkResponseIO for NetworkSingleResponse {}
+impl NetworkResponseIO for NetworkResponseSimple {}
 
-impl NetworkResponseWriter for NetworkSingleResponse {
-    fn write_data(&self, _node_id: NodeId, data: Vec<u8>) {
-        self.data.set_data(data);
+impl NetworkResponseWriter for NetworkResponseSimple {
+    fn write_data(&self, node_id: NodeId, data: Vec<u8>) {
+        self.node_id_and_data.set_data(Some((node_id, data)));
     }
 }
 
 #[async_trait]
-impl NetworkResponseReader for NetworkSingleResponse {
+impl NetworkResponseReader for NetworkResponseSimple {
     async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
-        let data = tokio::time::timeout(timeout, self.data.clone_data()).await?;
-        Ok((Vec::default(), data))
+        let (node_id, data) = tokio::time::timeout(timeout, self.node_id_and_data.clone_data())
+            .await?
+            .unwrap();
+        Ok((vec![node_id], data))
     }
 }
 
-pub struct NetworkMultiResponse {
-    activation: Activation,
-    node_count: usize,
-    multi_data: Mutex<HashMap<Vec<u8>, HashSet<NodeId>>>,
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// NetworkResponseWithFilter
+
+pub struct NetworkResponseWithFilter<TFilter> {
+    node_id_and_data: Data<Option<(NodeId, Vec<u8>)>>,
+    filter: TFilter,
 }
 
-impl NetworkMultiResponse {
-    pub fn new(node_count: usize) -> Self {
+impl<TFilter> NetworkResponseWithFilter<TFilter> {
+    pub fn new(filter: TFilter) -> Self {
         Self {
-            activation: Activation::new(false),
-            node_count,
-            multi_data: Mutex::new(HashMap::with_capacity(1)),
+            node_id_and_data: Data::new(None),
+            filter,
         }
     }
 }
 
-impl NetworkResponseIO for NetworkMultiResponse {}
+impl<TFilter> NetworkResponseIO for NetworkResponseWithFilter<TFilter> where
+    TFilter: Fn(&[u8]) -> bool + Send + Sync
+{
+}
 
-impl NetworkResponseWriter for NetworkMultiResponse {
+impl<TFilter> NetworkResponseWriter for NetworkResponseWithFilter<TFilter>
+where
+    TFilter: Fn(&[u8]) -> bool,
+{
+    fn write_data(&self, node_id: NodeId, data: Vec<u8>) {
+        if (self.filter)(&data) {
+            self.node_id_and_data.set_data(Some((node_id, data)));
+        }
+    }
+}
+
+#[async_trait]
+impl<TFilter> NetworkResponseReader for NetworkResponseWithFilter<TFilter>
+where
+    TFilter: Send + Sync,
+{
+    async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
+        let (node_id, data) = tokio::time::timeout(timeout, self.node_id_and_data.clone_data())
+            .await?
+            .unwrap();
+        Ok((vec![node_id], data))
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// NetworkResponseWithVote
+
+pub struct NetworkResponseWithVote {
+    activation: Activation,
+    multi_data: Mutex<HashMap<Vec<u8>, HashSet<NodeId>>>,
+    node_count: usize,
+}
+
+impl NetworkResponseWithVote {
+    pub fn new(node_count: usize) -> Self {
+        Self {
+            activation: Activation::new(false),
+            multi_data: Mutex::new(HashMap::with_capacity(1)),
+            node_count,
+        }
+    }
+}
+
+impl NetworkResponseIO for NetworkResponseWithVote {}
+
+impl NetworkResponseWriter for NetworkResponseWithVote {
     fn write_data(&self, node_id: NodeId, data: Vec<u8>) {
         let mut guard = self.multi_data.lock().unwrap();
         match guard.entry(data) {
@@ -85,7 +139,7 @@ impl NetworkResponseWriter for NetworkMultiResponse {
 }
 
 #[async_trait]
-impl NetworkResponseReader for NetworkMultiResponse {
+impl NetworkResponseReader for NetworkResponseWithVote {
     async fn read_data(&self, timeout: Duration) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
         tokio::time::timeout(timeout, self.activation.wait()).await?;
         {
@@ -97,6 +151,6 @@ impl NetworkResponseReader for NetworkMultiResponse {
                 }
             }
         }
-        Err(anyhow!("network multi response err"))
+        Err(anyhow!("NetworkResponseWithVote read_data err"))
     }
 }

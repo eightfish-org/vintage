@@ -1,3 +1,4 @@
+use crate::network::BlockChainNetworkClient;
 use crate::BlockState;
 use crate::DownloadWasmTask;
 use crate::MsgToProxySender;
@@ -10,7 +11,7 @@ use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use std::time::Duration;
 use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, WasmId, WasmTx};
-use vintage_utils::{current_timestamp, CalcHash, Hashed, ServiceStarter, Timestamp};
+use vintage_utils::{current_timestamp, CalcHash, ServiceStarter, Timestamp};
 
 pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
 
@@ -18,6 +19,7 @@ pub struct BlockChainCore {
     blockchain_db: BlockChainDb,
     wasm_db: WasmDb,
     tx_pool: Arc<TxPool>,
+    client: Arc<BlockChainNetworkClient>,
     proxy_msg_sender: MsgToProxySender,
     last_commited_time: Timestamp,
 }
@@ -27,12 +29,14 @@ impl BlockChainCore {
         blockchain_db: BlockChainDb,
         wasm_db: WasmDb,
         tx_pool: Arc<TxPool>,
+        client: Arc<BlockChainNetworkClient>,
         proxy_msg_sender: MsgToProxySender,
     ) -> Self {
         Self {
             blockchain_db,
             wasm_db,
             tx_pool,
+            client,
             proxy_msg_sender,
             last_commited_time: 0,
         }
@@ -48,7 +52,7 @@ impl BlockChainCore {
         self.blockchain_db.get_block_height().await
     }
 
-    pub(crate) async fn new_block(&self, height: u64) -> anyhow::Result<(Block, Hashed)> {
+    pub(crate) async fn new_block(&self, height: u64) -> anyhow::Result<(Block, BlockHash)> {
         self.check_block_height(height).await?;
         // prev block
         let prev_block = self.get_block(height - 1).await?;
@@ -93,7 +97,7 @@ impl BlockChainCore {
         &self,
         height: u64,
         block: &Block,
-        hash: &Hashed,
+        hash: &BlockHash,
     ) -> anyhow::Result<()> {
         // prev block
         let prev_block = self.get_block(height - 1).await?;
@@ -135,7 +139,7 @@ impl BlockChainCore {
         &mut self,
         height: u64,
         block: Block,
-        hash: Hashed,
+        hash: BlockHash,
     ) -> anyhow::Result<()> {
         self.check_block_height(height).await?;
         // prev block
@@ -311,7 +315,13 @@ impl BlockChainCore {
                 .await
             {
                 Ok(_) => {
-                    ServiceStarter::new(DownloadWasmTask::new(wasm_id.wasm_hash.clone())).start();
+                    ServiceStarter::new(DownloadWasmTask::new(
+                        self.wasm_db.clone(),
+                        self.proxy_msg_sender.clone(),
+                        self.client.clone(),
+                        wasm_id.wasm_hash.clone(),
+                    ))
+                    .start();
                 }
                 Err(err) => {
                     log::error!(

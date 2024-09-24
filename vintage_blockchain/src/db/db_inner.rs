@@ -146,16 +146,16 @@ impl BlockChainDbInner {
         table.check_wasm_txs_not_exist(wasm_ids)
     }
 
-    pub fn get_wasm_tx(&self, wasm_id: &WasmId) -> anyhow::Result<WasmInfo> {
-        let db_read = self.database.begin_read()?;
-        let table = WasmTxTableR::open_table(&db_read)?;
-        table.get_wasm_tx(wasm_id)
-    }
-
     pub fn get_upgrade_wasm_ids(&self, block_height: BlockHeight) -> anyhow::Result<Vec<WasmId>> {
         let db_read = self.database.begin_read()?;
         let table = UpgradeWasmTableR::open_table(&db_read)?;
         table.get_upgrade_wasm_ids(block_height)
+    }
+
+    pub fn _get_wasm_tx(&self, wasm_id: &WasmId) -> anyhow::Result<WasmInfo> {
+        let db_read = self.database.begin_read()?;
+        let table = WasmTxTableR::open_table(&db_read)?;
+        table.get_wasm_tx(wasm_id)
     }
 }
 

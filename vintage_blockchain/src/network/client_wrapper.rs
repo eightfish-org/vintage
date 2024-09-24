@@ -18,12 +18,12 @@ impl NetworkClientWrapper {
         }
     }
 
-    pub async fn request<TRequest, TResponse>(
-        &mut self,
-        node_id: NodeId,
+    pub async fn request_with_single_node<TRequest, TResponse>(
+        &self,
         handler: NetworkMsgHandler,
         request: TRequest,
         timeout: Duration,
+        node_id: NodeId,
     ) -> anyhow::Result<TResponse>
     where
         TRequest: Serialize,
@@ -32,14 +32,35 @@ impl NetworkClientWrapper {
         let req_encoded = request.bincode_serialize()?;
         let rsp_encoded = self
             .client
-            .request(node_id, handler, req_encoded, timeout)
+            .request_with_single_node(handler, req_encoded, timeout, node_id)
             .await?;
         let (rsp, _bytes_read) = TResponse::bincode_deserialize(&rsp_encoded)?;
         Ok(rsp)
     }
 
-    pub async fn request_broadcast<TRequest, TResponse>(
-        &mut self,
+    pub async fn request_with_filter<TRequest, TResponse, TFilter>(
+        &self,
+        handler: NetworkMsgHandler,
+        request: TRequest,
+        timeout: Duration,
+        filter: TFilter,
+    ) -> anyhow::Result<(NodeId, TResponse)>
+    where
+        TRequest: Serialize,
+        TResponse: DeserializeOwned,
+        TFilter: Fn(&[u8]) -> bool + Send + Sync + 'static,
+    {
+        let req_encoded = request.bincode_serialize()?;
+        let (node_id, rsp_encoded) = self
+            .client
+            .request_with_filter(handler, req_encoded, timeout, filter)
+            .await?;
+        let (rsp, _bytes_read) = TResponse::bincode_deserialize(&rsp_encoded)?;
+        Ok((node_id, rsp))
+    }
+
+    pub async fn request_with_vote<TRequest, TResponse>(
+        &self,
         handler: NetworkMsgHandler,
         request: TRequest,
         timeout: Duration,
@@ -56,14 +77,14 @@ impl NetworkClientWrapper {
         let encoded = request.bincode_serialize()?;
         let (node_ids, rsp_encoded) = self
             .client
-            .request_broadcast(self.active_number_of_nodes, handler, encoded, timeout)
+            .request_with_vote(handler, encoded, timeout, self.active_number_of_nodes)
             .await?;
         let (rsp, _bytes_read) = TResponse::bincode_deserialize(&rsp_encoded)?;
         Ok((node_ids, rsp))
     }
 
-    pub async fn request_broadcast_1<TRequest, TResponse>(
-        &mut self,
+    pub async fn request_with_vote_1<TRequest, TResponse>(
+        &self,
         handler: NetworkMsgHandler,
         request: TRequest,
         timeout: Duration,
@@ -72,7 +93,7 @@ impl NetworkClientWrapper {
         TRequest: Serialize,
         TResponse: DeserializeOwned,
     {
-        let (node_ids, data) = self.request_broadcast(handler, request, timeout).await?;
+        let (node_ids, data) = self.request_with_vote(handler, request, timeout).await?;
         Ok((node_ids.first().unwrap().clone(), data))
     }
 }

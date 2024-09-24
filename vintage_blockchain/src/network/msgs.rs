@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use vintage_msg::{ActTx, Block, BlockHash, BlockHeight};
+use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, WasmHash};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum BroadcastMsg {
@@ -10,6 +10,8 @@ pub(crate) enum BroadcastMsg {
 pub(crate) enum RequestMsg {
     ReqBlockHash(ReqBlockHash),
     ReqBlock(ReqBlock),
+    ReqWasmExists(WasmHash),
+    ReqWasm(WasmHash),
 }
 
 #[derive(Serialize, Deserialize)]

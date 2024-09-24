@@ -1,4 +1,4 @@
-use crate::{ActTx, Block, BlockEvent, UpdateEntityTx, UploadWasm};
+use crate::{ActTx, Block, BlockEvent, UpdateEntityTx, UploadWasm, WasmHash};
 use bytes::Bytes;
 use overlord::types::OverlordMsg;
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,7 @@ pub enum MsgToBlockChain {
 
 pub enum MsgToProxy {
     BlockEvent(BlockEvent),
+    WasmBinary(WasmHash, Vec<u8>),
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

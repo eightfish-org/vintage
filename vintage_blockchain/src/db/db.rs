@@ -111,17 +111,17 @@ impl BlockChainDb {
         spawn_blocking(move || db.check_wasm_txs_not_exist(&wasm_id)).await?
     }
 
-    pub async fn get_wasm_tx(&self, wasm_id: WasmId) -> anyhow::Result<WasmInfo> {
-        let db = self.db.clone();
-        spawn_blocking(move || db.get_wasm_tx(&wasm_id)).await?
-    }
-
     pub async fn get_upgrade_wasm_ids(
         &self,
         block_height: BlockHeight,
     ) -> anyhow::Result<Vec<WasmId>> {
         let db = self.db.clone();
         spawn_blocking(move || db.get_upgrade_wasm_ids(block_height)).await?
+    }
+
+    pub async fn _get_wasm_tx(&self, wasm_id: WasmId) -> anyhow::Result<WasmInfo> {
+        let db = self.db.clone();
+        spawn_blocking(move || db._get_wasm_tx(&wasm_id)).await?
     }
 }
 
