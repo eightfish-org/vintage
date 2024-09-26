@@ -6,6 +6,7 @@ mod test;
 use crate::app::Vintage;
 use crate::config::load_config;
 use crate::node::{VintageNode, VintageNodeDev};
+use crate::test::start_vintage_test;
 use log::LevelFilter;
 use std::env;
 use std::process;
@@ -21,8 +22,18 @@ fn print_usage() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // if cfg!(debug_assertions) {
+    //     unsafe {
+    //         env::set_var("RUST_BACKTRACE", "full");
+    //     }
+    // }
+
     env_logger::Builder::new()
-        .filter_level(LevelFilter::Debug)
+        .filter_level(LevelFilter::Info)
+        // .filter_module("overlord", LevelFilter::Warn)
+        // .filter_module("vintage_network", LevelFilter::Warn)
+        // .filter_module("vintage_consensus", LevelFilter::Warn)
+        // .filter_module("vintage_proxy", LevelFilter::Warn)
         .init();
 
     // args
@@ -47,6 +58,11 @@ async fn main() -> anyhow::Result<()> {
         consensus_chn,
         network_chn,
     ) = msg_channels();
+
+    // test
+    if config.dev_mode {
+        start_vintage_test(&config.node.name, blockchain_msg_sender);
+    }
 
     // network client
     let request_mgr = Arc::new(std::sync::Mutex::new(NetworkRequestMgr::new()));
@@ -84,6 +100,5 @@ async fn main() -> anyhow::Result<()> {
 
     join_vintage.await?;
     join_node.await?;
-
     Ok(())
 }

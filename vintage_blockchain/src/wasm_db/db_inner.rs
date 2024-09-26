@@ -20,6 +20,7 @@ impl WasmDbInner {
     fn create_tables(&self) -> anyhow::Result<()> {
         let db_write = self.database.begin_write()?;
         WasmBinaryTableW::open_table(&db_write)?;
+        DownloadWasmTableW::open_table(&db_write)?;
         db_write.commit()?;
         Ok(())
     }

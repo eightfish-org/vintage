@@ -98,7 +98,7 @@ where
 
         let check_boolean: bool = self
             .blockchain_api
-            .check_entities(msg_obj.model.clone(), entities)
+            .check_entities(msg_obj.proto.clone(), msg_obj.model.clone(), entities)
             .await;
 
         let ret_payload = payload_json(&payload.reqid, check_boolean.to_string());

@@ -11,8 +11,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::path::Path;
 use vintage_msg::{
-    Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, UpdateEntityTx, WasmId, WasmInfo,
-    WasmTx,
+    Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, Proto, UpdateEntityTx, WasmId,
+    WasmInfo, WasmTx,
 };
 
 pub(crate) struct BlockChainDbInner {
@@ -128,10 +128,15 @@ impl BlockChainDbInner {
         table.get_ue_txs_in_pool(count)
     }
 
-    pub fn get_entity(&self, model: &Model, entity_id: &EntityId) -> anyhow::Result<EntityHash> {
+    pub fn get_entity(
+        &self,
+        proto: &Proto,
+        model: &Model,
+        entity_id: &EntityId,
+    ) -> anyhow::Result<EntityHash> {
         let db_read = self.database.begin_read()?;
         let table = EntityTableR::open_table(&db_read)?;
-        table.get_entity(model, entity_id)
+        table.get_entity(proto, model, entity_id)
     }
 
     pub fn check_wasm_tx_not_exists(&self, wasm_id: &WasmId) -> anyhow::Result<()> {
@@ -208,7 +213,7 @@ impl BlockChainDbInner {
                 table_ue_tx.insert_tx(&hash, &ue_tx)?;
                 for entity in &ue_tx.entities {
                     table_entity
-                        .insert_entity(&ue_tx.model, &entity.id, &entity.hash)
+                        .insert_entity(&ue_tx.proto, &ue_tx.model, &entity.id, &entity.hash)
                         .unwrap()
                 }
             }

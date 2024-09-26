@@ -42,8 +42,8 @@ impl Admin2Vin {
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UploadWasm(UploadWasm {
                 proto: object.proto,
-                wasm_binary: object.data,
-                block_interval: 1000,
+                wasm_binary: object.ext,
+                block_interval: 2000,
             }));
     }
 }

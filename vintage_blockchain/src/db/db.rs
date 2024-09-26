@@ -5,7 +5,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 use vintage_msg::{
-    Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, UpdateEntityTx, WasmId, WasmInfo,
+    Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, Proto, UpdateEntityTx, WasmId,
+    WasmInfo,
 };
 
 #[derive(Clone)]
@@ -94,11 +95,12 @@ impl BlockChainDb {
 
     pub async fn get_entity(
         &self,
+        proto: Proto,
         model: Model,
         entity_id: EntityId,
     ) -> anyhow::Result<EntityHash> {
         let db = self.db.clone();
-        spawn_blocking(move || db.get_entity(&model, &entity_id)).await?
+        spawn_blocking(move || db.get_entity(&proto, &model, &entity_id)).await?
     }
 
     pub async fn check_wasm_tx_not_exists(&self, wasm_id: WasmId) -> anyhow::Result<()> {

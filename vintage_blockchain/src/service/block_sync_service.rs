@@ -58,7 +58,7 @@ impl Service for BlockSyncService {
                         }
                     }
                     Err(err) => {
-                        log::error!("Block sync service err: {:?}", err);
+                        log::warn!("Block sync service err: {:?}", err);
                         break;
                     }
                 }

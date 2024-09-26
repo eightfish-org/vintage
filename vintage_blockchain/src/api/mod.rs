@@ -1,6 +1,6 @@
 use crate::BlockChainDb;
 use async_trait::async_trait;
-use vintage_msg::{BlockChainApi, BlockHeight, Entity, Model};
+use vintage_msg::{BlockChainApi, BlockHeight, Entity, Model, Proto};
 
 #[derive(Clone)]
 pub struct BlockChainApiImpl {
@@ -19,11 +19,11 @@ impl BlockChainApi for BlockChainApiImpl {
         self.blockchain_db.get_block_height().await
     }
 
-    async fn check_entities(&self, model: Model, entities: Vec<Entity>) -> bool {
+    async fn check_entities(&self, proto: Proto, model: Model, entities: Vec<Entity>) -> bool {
         for entity in entities {
             match self
                 .blockchain_db
-                .get_entity(model.clone(), entity.id)
+                .get_entity(proto.clone(), model.clone(), entity.id)
                 .await
             {
                 Ok(hash) => {
