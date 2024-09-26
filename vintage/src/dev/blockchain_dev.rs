@@ -26,11 +26,11 @@ pub(super) async fn send_act_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>
 
 pub(super) async fn send_wasm_to_blockchain(sender: mpsc::Sender<MsgToBlockChain>) {
     loop {
-        tokio::time::sleep(Duration::from_secs(120)).await;
+        tokio::time::sleep(Duration::from_secs(30)).await;
         sender.send_msg(MsgToBlockChain::UploadWasm(UploadWasm {
             proto: "proto2".to_string(),
             wasm_binary: random_bytes(),
-            block_interval: 100,
+            block_interval: 10,
         }));
     }
 }

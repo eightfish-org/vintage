@@ -246,6 +246,8 @@ impl BlockChainService {
         } = upload_wasm;
 
         let wasm_hash = wasm_binary.calc_hash();
+        log::info!("wasm tx, proto: {}, hash: {}", proto, wasm_hash);
+
         if self
             .wasm_db
             .try_insert_wasm_binary(wasm_hash.clone(), wasm_binary.clone())

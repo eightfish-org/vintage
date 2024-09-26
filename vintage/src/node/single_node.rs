@@ -7,13 +7,13 @@ use vintage_consensus::BlockConsensus;
 use vintage_msg::BlockHeight;
 use vintage_utils::{Service, ServiceStarter};
 
-pub struct VintageNodeDev {
+pub struct VintageSingleNode {
     block_consensus: BlockConsensusImpl,
     block_interval: u64,
     next_height: BlockHeight,
 }
 
-impl VintageNodeDev {
+impl VintageSingleNode {
     pub async fn create(
         block_interval: u64,
         block_consensus: BlockConsensusImpl,
@@ -31,7 +31,7 @@ impl VintageNodeDev {
 }
 
 #[async_trait]
-impl Service for VintageNodeDev {
+impl Service for VintageSingleNode {
     type Input = ();
     type Output = ();
 
@@ -45,7 +45,7 @@ impl Service for VintageNodeDev {
     }
 }
 
-impl VintageNodeDev {
+impl VintageSingleNode {
     async fn generate_block(&mut self) -> Result<(), Box<dyn Error + Send>> {
         let (block, hash) = self.block_consensus.new_block(self.next_height).await?;
         self.block_consensus

@@ -1,24 +1,20 @@
 mod app;
+mod args;
 mod config;
+mod logger;
 mod node;
-mod test;
+mod dev;
 
 use crate::app::Vintage;
-use crate::config::load_config;
-use crate::node::{VintageNode, VintageNodeDev};
-use crate::test::start_vintage_test;
-use log::LevelFilter;
-use std::env;
-use std::process;
+use crate::args::args;
+use crate::config::{load_config, VintageMode};
+use crate::logger::env_logger_init;
+use crate::node::{VintageMultiNode, VintageSingleNode};
+use crate::dev::start_dev_task;
 use std::sync::Arc;
 use vintage_msg::msg_channels;
 use vintage_network::client::NetworkClient;
 use vintage_network::request::NetworkRequestMgr;
-
-fn print_usage() {
-    println!("Usage: exe -c [config_path]]");
-    println!("  <config_path>: the configuration file path");
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -28,23 +24,14 @@ async fn main() -> anyhow::Result<()> {
     //     }
     // }
 
-    env_logger::Builder::new()
-        .filter_level(LevelFilter::Info)
-        // .filter_module("overlord", LevelFilter::Warn)
-        // .filter_module("vintage_network", LevelFilter::Warn)
-        // .filter_module("vintage_consensus", LevelFilter::Warn)
-        // .filter_module("vintage_proxy", LevelFilter::Warn)
-        .init();
+    // env_logger
+    env_logger_init();
 
     // args
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 || args[1] != "-c" {
-        print_usage();
-        process::exit(1);
-    }
+    let config_file = args();
 
     // config
-    let config = load_config(&args[2])?;
+    let config = load_config(&config_file)?;
 
     // channels
     #[allow(unused_variables)]
@@ -59,9 +46,9 @@ async fn main() -> anyhow::Result<()> {
         network_chn,
     ) = msg_channels();
 
-    // test
-    if config.dev_mode {
-        start_vintage_test(&config.node.name, blockchain_msg_sender);
+    // dev
+    if config.mode != VintageMode::Prod {
+        start_dev_task(&config.node.name, blockchain_msg_sender);
     }
 
     // network client
@@ -82,12 +69,12 @@ async fn main() -> anyhow::Result<()> {
     let join_vintage = vintage.start_service();
 
     // node
-    let join_node = if config.dev_mode {
-        VintageNodeDev::create(config.node.block_interval, block_consensus)
+    let join_node = if config.mode == VintageMode::DevSingleNode {
+        VintageSingleNode::create(config.node.block_interval, block_consensus)
             .await?
             .start()
     } else {
-        VintageNode::create(
+        VintageMultiNode::create(
             config.node,
             consensus_chn,
             network_chn,

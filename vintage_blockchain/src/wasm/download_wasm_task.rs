@@ -54,6 +54,7 @@ impl DownloadWasmTask {
         self.wasm_db
             .finish_download_wasm_task(self.wasm_hash.clone(), wasm_binary.clone())
             .await?;
+
         self.proxy_msg_sender
             .send_wasm_binary(self.wasm_hash, wasm_binary);
         Ok(())

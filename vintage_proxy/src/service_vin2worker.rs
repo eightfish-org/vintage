@@ -114,6 +114,12 @@ impl Vin2Worker {
     }
 
     async fn on_upload_wasm_event(&mut self, wasm_hash: WasmHash, wasm_binary: Vec<u8>) {
+        log::info!(
+            "upload wasm event, hash: {}, size: {}",
+            wasm_hash,
+            wasm_binary.len()
+        );
+
         let output = InputOutputObject {
             action: ACTION_UPLOAD_WASM.to_string(),
             proto: "".to_owned(),
@@ -125,6 +131,12 @@ impl Vin2Worker {
     }
 
     async fn on_upgrade_wasm_event(&mut self, wasm_id: WasmId) {
+        log::info!(
+            "upgrade wasm event, proto: {}, hash: {}",
+            wasm_id.proto,
+            wasm_id.wasm_hash
+        );
+
         let output = InputOutputObject {
             action: ACTION_UPGRADE_WASM.to_string(),
             proto: wasm_id.proto,
@@ -144,8 +156,8 @@ impl Vin2Worker {
 
         let result: Result<String, redis::RedisError> =
             self.redis_conn.publish(channel, output_bytes).await;
-        if let Err(err) = result {
-            log::error!("Error publishing to redis: {:?}", err);
+        if let Err(_err) = result {
+            // log::error!("Error publishing to redis: {:?}", err);
         }
     }
 }

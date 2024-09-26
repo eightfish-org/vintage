@@ -33,14 +33,14 @@ impl Service for BlockSyncService {
 
     async fn service(mut self, blockchain_core: Self::Input) -> Self::Output {
         loop {
-            log::info!("====Block sync service loop");
+            log::debug!("====Block sync service loop");
             tokio::time::sleep(Duration::from_millis(self.interval)).await;
             {
                 let guard = blockchain_core.lock().await;
                 if guard.get_last_commited_time() + Duration::from_millis(self.interval).as_secs()
                     > current_timestamp()
                 {
-                    log::info!("=block sync check result in skip: get_last_commited_time: {}, interval: {}, current_timestamp: {}", guard.get_last_commited_time(), Duration::from_millis(self.interval).as_secs(), current_timestamp());
+                    log::debug!("=block sync check result in skip: get_last_commited_time: {}, interval: {}, current_timestamp: {}", guard.get_last_commited_time(), Duration::from_millis(self.interval).as_secs(), current_timestamp());
                     continue;
                 }
             }

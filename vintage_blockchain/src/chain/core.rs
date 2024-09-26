@@ -169,15 +169,29 @@ impl BlockChainCore {
                 block,
             )
             .await?;
-        log::info!(
-            "block commited, height: {},\nhash: {}, timestamp: {}, total_act_txs: {}, act_txs: {}, ue_txs: {}",
-            height,
-            block_hash_cloned,
-            timestamp,
-            total_act_txs,
-            act_txs.len(),
-            ue_txs.len()
-        );
+
+        if wasm_ids.is_empty() {
+            log::info!(
+                "block commited, height: {},\nhash: {}, timestamp: {}, total_act_txs: {}, act_txs: {}, ue_txs: {}",
+                height,
+                block_hash_cloned,
+                timestamp,
+                total_act_txs,
+                act_txs.len(),
+                ue_txs.len(),
+            );
+        } else {
+            log::info!(
+                "block commited, height: {},\nhash: {}, timestamp: {}, total_act_txs: {}, act_txs: {}, ue_txs: {}, wasm_txs: {}",
+                height,
+                block_hash_cloned,
+                timestamp,
+                total_act_txs,
+                act_txs.len(),
+                ue_txs.len(),
+                wasm_ids.len(),
+            );
+        }
 
         // after - commit block
         self.last_commited_time = current_timestamp();

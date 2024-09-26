@@ -1,4 +1,4 @@
-dev_mode: true
+mode: Prod
 blockchain:
   db_path: vintage4.db
   wasm_db_path: wasm4.db
