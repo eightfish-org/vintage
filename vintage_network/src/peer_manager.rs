@@ -21,8 +21,9 @@ impl From<SocketAddr> for PeerAddress {
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PeerInfo {
-    pub address: SocketAddr,
+    pub id: u16,
     pub name: String,
+    pub address: SocketAddr,
     pub propose_weight: u32,
     pub vote_weight: u32,
 }
@@ -120,8 +121,9 @@ impl PeerManager {
                 PeerStatus {
                     connected_once: true,
                     info: PeerInfo {
-                        address: addr,
+                        id: 0,
                         name: format!("Node_{}", addr),
+                        address: addr,
                         vote_weight: 0,
                         propose_weight: 0,
                     },

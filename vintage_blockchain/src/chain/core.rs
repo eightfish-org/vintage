@@ -328,14 +328,16 @@ impl BlockChainCore {
                 .try_insert_download_wasm_task(wasm_id.wasm_hash.clone())
                 .await
             {
-                Ok(_) => {
-                    ServiceStarter::new(DownloadWasmTask::new(
-                        self.wasm_db.clone(),
-                        self.proxy_msg_sender.clone(),
-                        self.client.clone(),
-                        wasm_id.wasm_hash.clone(),
-                    ))
-                    .start();
+                Ok(insert) => {
+                    if insert {
+                        ServiceStarter::new(DownloadWasmTask::new(
+                            self.wasm_db.clone(),
+                            self.proxy_msg_sender.clone(),
+                            self.client.clone(),
+                            wasm_id.wasm_hash.clone(),
+                        ))
+                        .start();
+                    }
                 }
                 Err(err) => {
                     log::error!(

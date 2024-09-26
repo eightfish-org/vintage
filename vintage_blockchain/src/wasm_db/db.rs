@@ -47,7 +47,7 @@ impl WasmDb {
         spawn_blocking(move || db.try_insert_wasm_binary(&wasm_hash, &wasm_binary)).await?
     }
 
-    pub async fn try_insert_download_wasm_task(&self, wasm_hash: WasmHash) -> anyhow::Result<()> {
+    pub async fn try_insert_download_wasm_task(&self, wasm_hash: WasmHash) -> anyhow::Result<bool> {
         let db = self.db.clone();
         spawn_blocking(move || db.try_insert_download_wasm_task(&wasm_hash)).await?
     }

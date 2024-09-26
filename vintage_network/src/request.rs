@@ -12,9 +12,9 @@ pub struct NetworkRequestMgr {
 }
 
 impl NetworkRequestMgr {
-    pub fn new() -> Self {
+    pub fn new(node_id: u16) -> Self {
         Self {
-            last_request_id: 0,
+            last_request_id: node_id as u64 * 1_000_000_000_000_000_000,
             requests: HashMap::new(),
         }
     }
@@ -50,7 +50,11 @@ impl NetworkRequestMgr {
         if let Some(response) = self.requests.get(&request_id) {
             response.write_data(node_id, data);
         } else {
-            log::error!("Received response for unknown request ID: {}", request_id);
+            log::debug!(
+                "request {} removed, received response from {}",
+                request_id,
+                node_id
+            );
         }
     }
 

@@ -99,7 +99,7 @@ impl BlockChainService {
         match msg {
             BroadcastMsg::ActTx(act_tx) => {
                 let act_tx_id = self.put_act_tx_to_pool(act_tx).await?;
-                log::info!("act tx from network: {}", act_tx_id);
+                log::debug!("act tx from network: {}", act_tx_id);
                 Ok(())
             }
         }
@@ -211,7 +211,7 @@ impl BlockChainService {
 
     async fn act_handler(&self, act_tx: ActTx) -> anyhow::Result<()> {
         let act_tx_id = self.put_act_tx_to_pool(act_tx.clone()).await?;
-        log::info!("act tx from proxy: {}", act_tx_id);
+        log::debug!("act tx from proxy: {}", act_tx_id);
         self.network_msg_sender
             .send_broadcast(&BroadcastMsg::ActTx(act_tx));
         Ok(())
@@ -246,18 +246,26 @@ impl BlockChainService {
         } = upload_wasm;
 
         let wasm_hash = wasm_binary.calc_hash();
-        log::info!("wasm tx, proto: {}, hash: {}", proto, wasm_hash);
-
         if self
             .wasm_db
             .try_insert_wasm_binary(wasm_hash.clone(), wasm_binary.clone())
             .await?
         {
-            log::info!("wasm file {} saved", wasm_hash);
+            log::info!(
+                "wasm file from admin, proto: {}, hash: {}, size: {}B, saved in db",
+                proto,
+                wasm_hash,
+                wasm_binary.len()
+            );
             self.proxy_msg_sender
                 .send_wasm_binary(wasm_hash.clone(), wasm_binary);
         } else {
-            log::info!("wasm file {} already exists", wasm_hash);
+            log::info!(
+                "wasm file from admin, proto: {}, hash: {}, size: {}B, already exists in db",
+                proto,
+                wasm_hash,
+                wasm_binary.len()
+            );
         }
 
         self.put_wasm_tx_to_pool(WasmId { proto, wasm_hash }, WasmInfo { block_interval })
@@ -269,7 +277,11 @@ impl BlockChainService {
     async fn put_wasm_tx_to_pool(&self, key: WasmId, info: WasmInfo) -> anyhow::Result<()> {
         {
             if self.tx_pool.wasm_txs_guard().contains_key(&key) {
-                return Err(anyhow!("wasm tx already exists in pool"));
+                return Err(anyhow!(
+                    "wasm tx {} {} already exists in pool",
+                    key.proto,
+                    key.wasm_hash
+                ));
             }
         }
         self.blockchain_db

@@ -43,7 +43,7 @@ impl Service for Vin2Worker {
                         }
                         self.on_block_height_event(event.height).await;
                         for wasm_id in event.upgrade_wasm_ids {
-                            self.on_upgrade_wasm_event(wasm_id).await;
+                            self.on_upgrade_wasm_event(event.height, wasm_id).await;
                         }
                     }
                     MsgToProxy::WasmBinary(wasm_hash, wasm_binary) => {
@@ -115,7 +115,7 @@ impl Vin2Worker {
 
     async fn on_upload_wasm_event(&mut self, wasm_hash: WasmHash, wasm_binary: Vec<u8>) {
         log::info!(
-            "upload wasm event, hash: {}, size: {}",
+            "upload wasm event to worker, hash: {}, size: {}B",
             wasm_hash,
             wasm_binary.len()
         );
@@ -130,9 +130,10 @@ impl Vin2Worker {
         self.publish_vin_2_worker(None, &output).await;
     }
 
-    async fn on_upgrade_wasm_event(&mut self, wasm_id: WasmId) {
+    async fn on_upgrade_wasm_event(&mut self, block_height: BlockHeight, wasm_id: WasmId) {
         log::info!(
-            "upgrade wasm event, proto: {}, hash: {}",
+            "upgrade wasm event to worker, height: {}, proto: {}, hash: {}",
+            block_height,
             wasm_id.proto,
             wasm_id.wasm_hash
         );

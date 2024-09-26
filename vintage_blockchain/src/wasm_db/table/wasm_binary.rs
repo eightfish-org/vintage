@@ -12,7 +12,7 @@ where
     TABLE: ReadableTable<RedbBytes32, RedbBytes>,
 {
     pub fn wasm_binary_exists(&self, wasm_hash: &WasmHash) -> anyhow::Result<bool> {
-        Ok(self.get(wasm_hash.as_bytes())?.is_some())
+        Ok(self.exists(wasm_hash.as_bytes())?)
     }
 
     pub fn get_wasm_binary(&self, wasm_hash: &WasmHash) -> anyhow::Result<Vec<u8>> {

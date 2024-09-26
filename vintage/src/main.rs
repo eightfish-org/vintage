@@ -1,16 +1,16 @@
 mod app;
 mod args;
 mod config;
+mod dev;
 mod logger;
 mod node;
-mod dev;
 
 use crate::app::Vintage;
 use crate::args::args;
 use crate::config::{load_config, VintageMode};
+use crate::dev::start_dev_task;
 use crate::logger::env_logger_init;
 use crate::node::{VintageMultiNode, VintageSingleNode};
-use crate::dev::start_dev_task;
 use std::sync::Arc;
 use vintage_msg::msg_channels;
 use vintage_network::client::NetworkClient;
@@ -52,7 +52,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // network client
-    let request_mgr = Arc::new(std::sync::Mutex::new(NetworkRequestMgr::new()));
+    let request_mgr = Arc::new(std::sync::Mutex::new(NetworkRequestMgr::new(
+        config.node.id,
+    )));
     let client = NetworkClient::new(request_mgr.clone(), network_msg_sender.clone());
 
     // vintage

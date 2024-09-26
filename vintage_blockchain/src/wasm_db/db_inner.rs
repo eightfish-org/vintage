@@ -60,7 +60,7 @@ impl WasmDbInner {
         };
 
         db_write.commit()?;
-        Ok(!insert)
+        Ok(insert)
     }
 
     pub fn get_download_wasm_tasks(&self) -> anyhow::Result<Vec<WasmHash>> {
@@ -69,18 +69,21 @@ impl WasmDbInner {
         Ok(table.get_download_wasm_tasks()?)
     }
 
-    pub fn try_insert_download_wasm_task(&self, wasm_hash: &WasmHash) -> anyhow::Result<()> {
+    pub fn try_insert_download_wasm_task(&self, wasm_hash: &WasmHash) -> anyhow::Result<bool> {
         let db_write = self.database.begin_write()?;
         let exits = {
             let table = WasmBinaryTableW::open_table(&db_write)?;
             table.wasm_binary_exists(wasm_hash)?
         };
-        if !exits {
+        let insert = if !exits {
             let mut table = DownloadWasmTableW::open_table(&db_write)?;
             table.insert_download_wasm_task(wasm_hash)?;
-        }
+            true
+        } else {
+            false
+        };
         db_write.commit()?;
-        Ok(())
+        Ok(insert)
     }
 
     pub fn finish_download_wasm_task(
