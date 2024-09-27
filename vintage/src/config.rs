@@ -7,18 +7,19 @@ use vintage_proxy::ProxyConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum VintageMode {
-    Prod,       // MultiNodes without test
-    SingleNode, // SingleNode without test
-    MultiNodesTest,
+    Prod,
+    Dev,
+    Test,
+    SingleNodeDev,
     SingleNodeTest,
 }
 
 impl VintageMode {
     pub fn multi_nodes_mode(self) -> bool {
-        self == Self::Prod || self == Self::MultiNodesTest
+        self == Self::Prod || self == Self::Dev || self == Self::Test
     }
     pub fn test_mode(self) -> bool {
-        self == Self::MultiNodesTest || self == Self::SingleNodeTest
+        self == Self::Test || self == Self::SingleNodeTest
     }
 }
 
