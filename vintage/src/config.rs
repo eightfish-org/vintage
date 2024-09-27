@@ -5,11 +5,21 @@ use vintage_blockchain::BlockChainConfig;
 use vintage_network::config::NodeConfig;
 use vintage_proxy::ProxyConfig;
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum VintageMode {
-    Prod,
-    Dev,
-    DevSingleNode,
+    Prod,       // MultiNodes without test
+    SingleNode, // SingleNode without test
+    MultiNodesTest,
+    SingleNodeTest,
+}
+
+impl VintageMode {
+    pub fn multi_nodes_mode(self) -> bool {
+        self == Self::Prod || self == Self::MultiNodesTest
+    }
+    pub fn test_mode(self) -> bool {
+        self == Self::MultiNodesTest || self == Self::SingleNodeTest
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

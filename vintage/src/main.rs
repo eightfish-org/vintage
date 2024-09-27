@@ -1,16 +1,16 @@
 mod app;
 mod args;
 mod config;
-mod dev;
 mod logger;
 mod node;
+mod test;
 
 use crate::app::Vintage;
 use crate::args::args;
-use crate::config::{load_config, VintageMode};
-use crate::dev::start_dev_task;
+use crate::config::load_config;
 use crate::logger::env_logger_init;
-use crate::node::{VintageMultiNode, VintageSingleNode};
+use crate::node::{VintageMultiNodes, VintageSingleNode};
+use crate::test::start_test;
 use std::sync::Arc;
 use vintage_msg::msg_channels;
 use vintage_network::client::NetworkClient;
@@ -46,9 +46,9 @@ async fn main() -> anyhow::Result<()> {
         network_chn,
     ) = msg_channels();
 
-    // dev
-    if config.mode != VintageMode::Prod {
-        start_dev_task(&config.node.name, blockchain_msg_sender);
+    // test
+    if config.mode.test_mode() {
+        start_test(&config.node.name, blockchain_msg_sender);
     }
 
     // network client
@@ -71,12 +71,8 @@ async fn main() -> anyhow::Result<()> {
     let join_vintage = vintage.start_service();
 
     // node
-    let join_node = if config.mode == VintageMode::DevSingleNode {
-        VintageSingleNode::create(config.node.block_interval, block_consensus)
-            .await?
-            .start()
-    } else {
-        VintageMultiNode::create(
+    let join_node = if config.mode.multi_nodes_mode() {
+        VintageMultiNodes::create(
             config.node,
             consensus_chn,
             network_chn,
@@ -85,6 +81,10 @@ async fn main() -> anyhow::Result<()> {
         )
         .await?
         .start()
+    } else {
+        VintageSingleNode::create(config.node.block_interval, block_consensus)
+            .await?
+            .start()
     };
 
     join_vintage.await?;

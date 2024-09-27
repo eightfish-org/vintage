@@ -8,13 +8,13 @@ use vintage_network::request::ArcNetworkRequestMgr;
 use vintage_network::Node;
 use vintage_utils::{Service, ServiceStarter};
 
-pub struct VintageMultiNode {
+pub struct VintageMultiNodes {
     config: NodeConfig,
     validator: Validator<BlockConsensusImpl>,
     node: Node,
 }
 
-impl VintageMultiNode {
+impl VintageMultiNodes {
     pub async fn create(
         config: NodeConfig,
         consensus_chn: ConsensusMsgChannels,
@@ -35,7 +35,7 @@ impl VintageMultiNode {
 }
 
 #[async_trait]
-impl Service for VintageMultiNode {
+impl Service for VintageMultiNodes {
     type Input = ();
     type Output = ();
 
