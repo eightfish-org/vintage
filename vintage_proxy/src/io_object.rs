@@ -19,11 +19,18 @@ pub(crate) async fn read_msg(
     channel_name: &str,
 ) -> anyhow::Result<InputOutputObject> {
     let msg = pubsub_stream.next().await;
-    println!("received msg from channel {}: {:?}", channel_name, msg);
+    log::info!("received msg from channel {}", channel_name);
 
     let msg_payload: Vec<u8> = msg.unwrap().get_payload()?;
     let msg_obj: InputOutputObject = serde_json::from_slice(&msg_payload).unwrap();
-    println!("from redis: {:?}", msg_obj);
+    log::info!(
+        "from redis, msg_obj: {} {} {} {} {}",
+        msg_obj.action,
+        msg_obj.proto,
+        msg_obj.model,
+        msg_obj.data.len(),
+        msg_obj.ext.len()
+    );
     Ok(msg_obj)
 }
 
