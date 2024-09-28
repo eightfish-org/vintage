@@ -155,7 +155,7 @@ impl Vin2Worker {
         };
         let output_bytes = serde_json::to_vec(output).unwrap();
 
-        let result: Result<String, redis::RedisError> =
+        let result: Result<u32, redis::RedisError> =
             self.redis_conn.publish(channel, output_bytes).await;
         if let Err(_err) = result {
             // log::error!("Error publishing to redis: {:?}", err);

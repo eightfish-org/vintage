@@ -110,14 +110,15 @@ where
         // send packet back to the spin runtime
         let output = InputOutputObject {
             action: msg_obj.action,
-            proto: msg_obj.proto,
+            proto: msg_obj.proto.clone(),
             model: msg_obj.model,
             data: ret_payload.to_string().as_bytes().to_vec(),
             ext: vec![],
         };
         let output_string = serde_json::to_vec(&output).unwrap();
-        let result: Result<String, redis::RedisError> =
-            self.redis_conn.publish(VIN_2_WORKER, output_string).await;
+        let channel = format!("{VIN_2_WORKER}:{}", msg_obj.proto);
+        let result: Result<u32, redis::RedisError> =
+            self.redis_conn.publish(&channel, output_string).await;
         result?;
         Ok(())
     }
