@@ -3,7 +3,6 @@ use crate::response::{NetworkResponseIO, NetworkResponseReader};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::error::Elapsed;
 use vintage_msg::{MsgToNetwork, NetworkMsgHandler, NodeId};
 use vintage_utils::SendMsg;
 
@@ -26,13 +25,13 @@ impl NetworkClient {
         }
     }
 
-    pub async fn request(
+    pub async fn request_with_single_node(
         &self,
-        timeout: Duration,
-        node_id: NodeId,
         handler: NetworkMsgHandler,
         content: Vec<u8>,
-    ) -> Result<Vec<u8>, Elapsed> {
+        timeout: Duration,
+        node_id: NodeId,
+    ) -> anyhow::Result<Vec<u8>> {
         let (request_id, response) = { self.request_mgr.lock().unwrap().request() };
         self.network_msg_sender
             .send_msg(MsgToNetwork::Request(node_id, handler, request_id, content));
@@ -40,21 +39,44 @@ impl NetworkClient {
         {
             self.request_mgr.lock().unwrap().remove(request_id);
         }
-        result
+        let (_node_ids, data) = result?;
+        Ok(data)
     }
 
-    pub async fn request_broadcast(
+    pub async fn request_with_filter<TFilter>(
         &self,
-        timeout: Duration,
         handler: NetworkMsgHandler,
         content: Vec<u8>,
+        timeout: Duration,
+        filter: TFilter,
+    ) -> anyhow::Result<(NodeId, Vec<u8>)>
+    where
+        TFilter: Fn(&[u8]) -> bool + Send + Sync + 'static,
+    {
+        let (request_id, response) =
+            { self.request_mgr.lock().unwrap().request_with_filter(filter) };
+        self.network_msg_sender
+            .send_msg(MsgToNetwork::RequestBroadcast(handler, request_id, content));
+        let result = response.read_data(timeout).await;
+        {
+            self.request_mgr.lock().unwrap().remove(request_id);
+        }
+        let (node_ids, data) = result?;
+        Ok((node_ids.first().unwrap().clone(), data))
+    }
+
+    pub async fn request_with_vote(
+        &self,
+        handler: NetworkMsgHandler,
+        content: Vec<u8>,
+        timeout: Duration,
         node_count: usize,
-    ) -> Result<Vec<u8>, Elapsed> {
+    ) -> anyhow::Result<(Vec<NodeId>, Vec<u8>)> {
         let (request_id, response) = {
             self.request_mgr
                 .lock()
                 .unwrap()
-                .request_broadcast(node_count)
+                .request_with_vote(node_count)
         };
         self.network_msg_sender
             .send_msg(MsgToNetwork::RequestBroadcast(handler, request_id, content));

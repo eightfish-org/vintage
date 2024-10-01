@@ -1,13 +1,19 @@
 use crate::chain::BlockState;
 use crate::db::{
-    ActTableR, ActTableW, BlockHeightTableR, BlockHeightTableW, BlockInDb, BlockTableR,
+    ActTxTableR, ActTxTableW, BlockHeightTableR, BlockHeightTableW, BlockInDb, BlockTableR,
     BlockTableW, EntityTableR, EntityTableW, UpdateEntityTxPoolTableR, UpdateEntityTxPoolTableW,
-    UpdateEntityTxTableR, UpdateEntityTxTableW,
+    UpdateEntityTxTableR, UpdateEntityTxTableW, UpgradeWasmTableR, UpgradeWasmTableW, WasmTxTableR,
+    WasmTxTableW,
 };
 use crate::tx::TxId;
 use redb::Database;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::path::Path;
-use vintage_msg::{Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, UpdateEntityTx};
+use vintage_msg::{
+    Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, Proto, UpdateEntityTx, WasmId,
+    WasmInfo, WasmTx,
+};
 
 pub(crate) struct BlockChainDbInner {
     database: Database,
@@ -27,9 +33,10 @@ impl BlockChainDbInner {
         let db_write = self.database.begin_write()?;
         BlockHeightTableW::open_table(&db_write)?;
         BlockTableW::open_table(&db_write)?;
-        ActTableW::open_table(&db_write)?;
+        ActTxTableW::open_table(&db_write)?;
         UpdateEntityTxTableW::open_table(&db_write)?;
         UpdateEntityTxPoolTableW::open_table(&db_write)?;
+        WasmTxTableW::open_table(&db_write)?;
         db_write.commit()?;
         Ok(())
     }
@@ -55,12 +62,12 @@ impl BlockChainDbInner {
             let table = BlockTableR::open_table(&db_read)?;
             table.get_block(height)?
         };
-        let mut acts = Vec::new();
+        let mut act_txs = Vec::new();
         {
-            let table = ActTableR::open_table(&db_read)?;
-            for act_id in block.act_ids {
-                let act = table.get_tx(&act_id)?;
-                acts.push(act);
+            let table = ActTxTableR::open_table(&db_read)?;
+            for act_tx_id in block.act_tx_ids {
+                let act_tx = table.get_tx(&act_tx_id)?;
+                act_txs.push(act_tx);
             }
         }
         let mut ue_txs = Vec::new();
@@ -71,23 +78,32 @@ impl BlockChainDbInner {
                 ue_txs.push(ue_tx);
             }
         }
+        let mut wasm_txs = Vec::new();
+        {
+            let table = WasmTxTableR::open_table(&db_read)?;
+            for wasm_id in block.wasm_ids {
+                let wasm_info = table.get_wasm_tx(&wasm_id)?;
+                wasm_txs.push(WasmTx { wasm_id, wasm_info });
+            }
+        }
         Ok(Block {
             timestamp: block.timestamp,
-            acts,
+            act_txs,
             ue_txs,
+            wasm_txs,
         })
     }
 
-    pub fn check_act_not_exists(&self, act_id: &TxId) -> anyhow::Result<()> {
+    pub fn check_act_tx_not_exists(&self, act_tx_id: &TxId) -> anyhow::Result<()> {
         let db_read = self.database.begin_read()?;
-        let table = ActTableR::open_table(&db_read)?;
-        table.check_tx_not_exists(act_id)
+        let table = ActTxTableR::open_table(&db_read)?;
+        table.check_tx_not_exists(act_tx_id)
     }
 
-    pub fn check_acts_not_exist(&self, act_ids: &[TxId]) -> anyhow::Result<()> {
+    pub fn check_act_txs_not_exist(&self, act_tx_ids: &[TxId]) -> anyhow::Result<()> {
         let db_read = self.database.begin_read()?;
-        let table = ActTableR::open_table(&db_read)?;
-        table.check_txs_not_exist(act_ids)
+        let table = ActTxTableR::open_table(&db_read)?;
+        table.check_txs_not_exist(act_tx_ids)
     }
 
     pub fn check_ue_txs_not_exist(&self, tx_ids: &[TxId]) -> anyhow::Result<()> {
@@ -112,10 +128,39 @@ impl BlockChainDbInner {
         table.get_ue_txs_in_pool(count)
     }
 
-    pub fn get_entity(&self, model: &Model, entity_id: &EntityId) -> anyhow::Result<EntityHash> {
+    pub fn get_entity(
+        &self,
+        proto: &Proto,
+        model: &Model,
+        entity_id: &EntityId,
+    ) -> anyhow::Result<EntityHash> {
         let db_read = self.database.begin_read()?;
         let table = EntityTableR::open_table(&db_read)?;
-        table.get_entity(model, entity_id)
+        table.get_entity(proto, model, entity_id)
+    }
+
+    pub fn check_wasm_tx_not_exists(&self, wasm_id: &WasmId) -> anyhow::Result<()> {
+        let db_read = self.database.begin_read()?;
+        let table = WasmTxTableR::open_table(&db_read)?;
+        table.check_wasm_tx_not_exists(wasm_id)
+    }
+
+    pub fn check_wasm_txs_not_exist(&self, wasm_ids: &[WasmId]) -> anyhow::Result<()> {
+        let db_read = self.database.begin_read()?;
+        let table = WasmTxTableR::open_table(&db_read)?;
+        table.check_wasm_txs_not_exist(wasm_ids)
+    }
+
+    pub fn get_upgrade_wasm_ids(&self, block_height: BlockHeight) -> anyhow::Result<Vec<WasmId>> {
+        let db_read = self.database.begin_read()?;
+        let table = UpgradeWasmTableR::open_table(&db_read)?;
+        table.get_upgrade_wasm_ids(block_height)
+    }
+
+    pub fn _get_wasm_tx(&self, wasm_id: &WasmId) -> anyhow::Result<WasmInfo> {
+        let db_read = self.database.begin_read()?;
+        let table = WasmTxTableR::open_table(&db_read)?;
+        table.get_wasm_tx(wasm_id)
     }
 }
 
@@ -142,9 +187,10 @@ impl BlockChainDbInner {
         height: BlockHeight,
         hash: BlockHash,
         state: BlockState,
-        act_ids: Vec<TxId>,
+        act_tx_ids: Vec<TxId>,
         ue_tx_ids: Vec<TxId>,
-        block: &Block,
+        wasm_ids: Vec<WasmId>,
+        block: Block,
     ) -> anyhow::Result<()> {
         let db_write = self.database.begin_write()?;
 
@@ -155,9 +201,9 @@ impl BlockChainDbInner {
         }
         // insert txs
         {
-            let mut table_act = ActTableW::open_table(&db_write)?;
-            for act in &block.acts {
-                table_act.insert_tx(&hash, &act)?;
+            let mut table_act_tx = ActTxTableW::open_table(&db_write)?;
+            for act_tx in &block.act_txs {
+                table_act_tx.insert_tx(&hash, &act_tx)?;
             }
         }
         {
@@ -167,9 +213,32 @@ impl BlockChainDbInner {
                 table_ue_tx.insert_tx(&hash, &ue_tx)?;
                 for entity in &ue_tx.entities {
                     table_entity
-                        .insert_entity(&ue_tx.model, &entity.id, &entity.hash)
+                        .insert_entity(&ue_tx.proto, &ue_tx.model, &entity.id, &entity.hash)
                         .unwrap()
                 }
+            }
+        }
+        let mut height_to_wasm_ids: HashMap<BlockHeight, Vec<WasmId>> = HashMap::new();
+        {
+            let mut table_wasm_tx = WasmTxTableW::open_table(&db_write)?;
+            for wasm_tx in block.wasm_txs {
+                table_wasm_tx.insert_wasm_tx(&wasm_tx.wasm_id, &wasm_tx.wasm_info)?;
+                match height_to_wasm_ids.entry(height + wasm_tx.wasm_info.block_interval) {
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().push(wasm_tx.wasm_id);
+                    }
+                    Entry::Vacant(entry) => {
+                        let mut wasm_ids: Vec<WasmId> = Vec::new();
+                        wasm_ids.push(wasm_tx.wasm_id);
+                        entry.insert(wasm_ids);
+                    }
+                }
+            }
+        }
+        {
+            let mut table = UpgradeWasmTableW::open_table(&db_write)?;
+            for (future_height, wasm_ids) in height_to_wasm_ids {
+                table.insert_upgrade_wasm_ids(future_height, wasm_ids)?;
             }
         }
 
@@ -182,8 +251,9 @@ impl BlockChainDbInner {
                     hash,
                     state,
                     timestamp: block.timestamp,
-                    act_ids,
+                    act_tx_ids,
                     ue_tx_ids,
+                    wasm_ids,
                 },
             )?;
         }

@@ -1,4 +1,4 @@
-use crate::{Act, Block, BlockEvent, UpdateEntityTx};
+use crate::{ActTx, Block, BlockEvent, UpdateEntityTx, UploadWasm, WasmHash};
 use bytes::Bytes;
 use overlord::types::OverlordMsg;
 use serde::{Deserialize, Serialize};
@@ -9,11 +9,13 @@ use std::net::SocketAddr;
 
 pub enum MsgToBlockChain {
     // from network
-    Broadcast(Vec<u8>),
+    Broadcast(NodeId, Vec<u8>),
     Request(NodeId, NetworkRequestId, Vec<u8>),
-    // from proxy
-    Act(Act),
+    // from worker
+    ActTx(ActTx),
     UpdateEntityTx(UpdateEntityTx),
+    // from admin
+    UploadWasm(UploadWasm),
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,6 +23,7 @@ pub enum MsgToBlockChain {
 
 pub enum MsgToProxy {
     BlockEvent(BlockEvent),
+    WasmBinary(WasmHash, Vec<u8>),
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

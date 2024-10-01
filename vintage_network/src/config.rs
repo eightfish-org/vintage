@@ -4,15 +4,16 @@ use std::net::SocketAddr;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NodeConfig {
+    pub block_interval: u64,
+    pub id: u16,
+    pub name: String,
     pub listen_addr: SocketAddr,
     pub peers: Vec<PeerInfo>,
-    pub name: String,
     pub propose_weight: u32,
     pub vote_weight: u32,
-    pub block_interval: u64,
 }
 
-impl NodeConfig{
+impl NodeConfig {
     pub fn get_number_of_node(&self) -> usize {
         // Add peer nodes
         let number_of_peers = self.peers.len();

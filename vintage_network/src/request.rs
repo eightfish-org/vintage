@@ -1,5 +1,5 @@
 use crate::client::{DynNetworkResponse, DynNetworkResponseReader};
-use crate::response::{NetworkMultiResponse, NetworkSingleResponse};
+use crate::response::{NetworkResponseSimple, NetworkResponseWithFilter, NetworkResponseWithVote};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use vintage_msg::{NetworkRequestId, NodeId};
@@ -12,38 +12,49 @@ pub struct NetworkRequestMgr {
 }
 
 impl NetworkRequestMgr {
-    pub fn new() -> Self {
+    pub fn new(node_id: u16) -> Self {
         Self {
-            last_request_id: 0,
+            last_request_id: node_id as u64 * 1_000_000_000_000_000_000,
             requests: HashMap::new(),
         }
     }
 
     pub(super) fn request(&mut self) -> (NetworkRequestId, DynNetworkResponseReader) {
-        let response = Arc::new(NetworkSingleResponse::new());
+        let response = Arc::new(NetworkResponseSimple::new());
         let request_id = self.insert_request(response.clone());
         (request_id, response)
     }
 
-    pub(super) fn request_broadcast(
+    pub(super) fn request_with_filter<TFilter>(
+        &mut self,
+        filter: TFilter,
+    ) -> (NetworkRequestId, DynNetworkResponseReader)
+    where
+        TFilter: Fn(&[u8]) -> bool + Send + Sync + 'static,
+    {
+        let response = Arc::new(NetworkResponseWithFilter::new(filter));
+        let request_id = self.insert_request(response.clone());
+        (request_id, response)
+    }
+
+    pub(super) fn request_with_vote(
         &mut self,
         node_count: usize,
     ) -> (NetworkRequestId, DynNetworkResponseReader) {
-        let response = Arc::new(NetworkMultiResponse::new(node_count));
+        let response = Arc::new(NetworkResponseWithVote::new(node_count));
         let request_id = self.insert_request(response.clone());
         (request_id, response)
     }
 
-    pub(super) fn on_response(
-        &mut self,
-        node_id: NodeId,
-        request_id: NetworkRequestId,
-        data: Vec<u8>,
-    ) {
+    pub(super) fn on_response(&self, node_id: NodeId, request_id: NetworkRequestId, data: Vec<u8>) {
         if let Some(response) = self.requests.get(&request_id) {
             response.write_data(node_id, data);
         } else {
-            log::error!("Received response for unknown request ID: {}", request_id);
+            log::debug!(
+                "request {} removed, received response from {}",
+                request_id,
+                node_id
+            );
         }
     }
 

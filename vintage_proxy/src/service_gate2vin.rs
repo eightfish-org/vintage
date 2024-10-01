@@ -1,19 +1,21 @@
+use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_UPDATE_INDEX};
+use crate::io_object::read_msg;
 use crate::{payload_json, EntitiesPayload, InputOutputObject};
+use crate::{GATE_2_VIN, VIN_2_WORKER};
 use async_trait::async_trait;
-use futures::StreamExt;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
 use tokio::sync::mpsc;
-use vintage_msg::{Act, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
+use vintage_msg::{ActTx, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
 
-pub struct ProxyInboundService<TApi> {
+pub struct Gate2Vin<TApi> {
     redis_conn: Connection,
     blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
     blockchain_api: TApi,
 }
 
-impl<TApi> ProxyInboundService<TApi> {
+impl<TApi> Gate2Vin<TApi> {
     pub(crate) fn new(
         redis_conn: Connection,
         blockchain_msg_sender: mpsc::Sender<MsgToBlockChain>,
@@ -28,52 +30,42 @@ impl<TApi> ProxyInboundService<TApi> {
 }
 
 #[async_trait]
-impl<TApi> Service for ProxyInboundService<TApi>
+impl<TApi> Service for Gate2Vin<TApi>
 where
     TApi: BlockChainApi + Send + Sync,
 {
     type Input = PubSub;
     type Output = anyhow::Result<()>;
 
-    async fn service(mut self, mut pubsub_conn: Self::Input) -> Self::Output {
-        pubsub_conn.subscribe("spin2proxy").await?;
-        let mut pubsub_stream = pubsub_conn.on_message();
+    async fn service(mut self, mut pubsub: Self::Input) -> Self::Output {
+        pubsub.subscribe(GATE_2_VIN).await?;
+        let mut pubsub_stream = pubsub.on_message();
 
         loop {
-            let msg = pubsub_stream.next().await;
-            println!("received msg from channel spin2proxy: {:?}", msg);
+            let msg_obj = read_msg(&mut pubsub_stream, GATE_2_VIN).await?;
 
-            let msg_payload: Vec<u8> = msg.unwrap().get_payload()?;
-            let msg_obj: InputOutputObject = serde_json::from_slice(&msg_payload).unwrap();
-            println!("from redis: {:?}", msg_obj);
-
-            if &msg_obj.action == "post" {
+            if &msg_obj.action == ACTION_POST {
                 self.post(msg_obj);
-            } else if &msg_obj.action == "update_index" {
+            } else if &msg_obj.action == ACTION_UPDATE_INDEX {
                 self.update_index(msg_obj);
-            } else if &msg_obj.action == "check_pair_list" {
+            } else if &msg_obj.action == ACTION_CHECK_PAIR_LIST {
                 if let Err(err) = self.check_pair_list(msg_obj).await {
-                    log::error!("check_pair_list err: {:?}", err)
+                    log::error!("{} err: {:?}", ACTION_CHECK_PAIR_LIST, err)
                 }
-            } else if &msg_obj.action == "check_new_version_wasmfile" {
-                self.check_new_version_wasmfile(msg_obj);
-            } else if &msg_obj.action == "retreive_wasmfile" {
-                self.retreive_wasmfile(msg_obj);
-            } else if &msg_obj.action == "disable_wasm_upgrade_flag" {
-                self.disable_wasm_upgrade_flag(msg_obj);
             }
         }
     }
 }
 
-impl<TApi> ProxyInboundService<TApi>
+impl<TApi> Gate2Vin<TApi>
 where
     TApi: BlockChainApi,
 {
     fn post(&self, object: InputOutputObject) {
         self.blockchain_msg_sender
-            .send_msg(MsgToBlockChain::Act(Act {
-                kind: object.action,
+            .send_msg(MsgToBlockChain::ActTx(ActTx {
+                action: object.action,
+                proto: object.proto,
                 model: object.model,
                 data: object.data,
             }));
@@ -89,6 +81,7 @@ where
 
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UpdateEntityTx(UpdateEntityTx {
+                proto: object.proto,
                 model: object.model,
                 req_id: payload.reqid,
                 entities,
@@ -105,7 +98,7 @@ where
 
         let check_boolean: bool = self
             .blockchain_api
-            .check_entities(msg_obj.model.clone(), entities)
+            .check_entities(msg_obj.proto.clone(), msg_obj.model.clone(), entities)
             .await;
 
         let ret_payload = payload_json(&payload.reqid, check_boolean.to_string());
@@ -117,18 +110,16 @@ where
         // send packet back to the spin runtime
         let output = InputOutputObject {
             action: msg_obj.action,
+            proto: msg_obj.proto.clone(),
             model: msg_obj.model,
             data: ret_payload.to_string().as_bytes().to_vec(),
             ext: vec![],
         };
         let output_string = serde_json::to_vec(&output).unwrap();
-        self.redis_conn.publish("proxy2spin", output_string).await?;
+        let channel = format!("{VIN_2_WORKER}:{}", msg_obj.proto);
+        let result: Result<u32, redis::RedisError> =
+            self.redis_conn.publish(&channel, output_string).await;
+        result?;
         Ok(())
     }
-
-    fn check_new_version_wasmfile(&self, _object: InputOutputObject) {}
-
-    fn retreive_wasmfile(&self, _object: InputOutputObject) {}
-
-    fn disable_wasm_upgrade_flag(&self, _object: InputOutputObject) {}
 }

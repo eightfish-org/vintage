@@ -1,10 +1,14 @@
-mod data;
-mod inbound_service;
-mod outbound_service;
+mod constants;
+mod io_object;
+mod service_admin2vin;
+mod service_gate2vin;
+mod service_vin2worker;
 
-use self::data::*;
-pub use self::inbound_service::*;
-pub use self::outbound_service::*;
+use self::constants::*;
+use self::io_object::*;
+pub use self::service_admin2vin::*;
+pub use self::service_gate2vin::*;
+pub use self::service_vin2worker::*;
 
 use serde::{Deserialize, Serialize};
 use vintage_msg::{BlockChainApi, ProxyMsgChannels};
@@ -23,31 +27,36 @@ impl Proxy {
         channels: ProxyMsgChannels,
         blockchain_api: TApi,
     ) -> anyhow::Result<(
-        ServiceStarter<ProxyInboundService<TApi>>,
-        ServiceStarter<ProxyOutboundService>,
+        ServiceStarter<Vin2Worker>,
+        ServiceStarter<Gate2Vin<TApi>>,
+        ServiceStarter<Admin2Vin>,
     )>
     where
         TApi: BlockChainApi + Send + Sync + 'static,
     {
-        log::info!("connect to redis: {}", &*config.redis_addr);
-        let redis_client = redis::Client::open(&*config.redis_addr).unwrap();
-        let inbound_pub_sub = redis_client.get_async_connection().await?.into_pubsub();
-        let inbound_redis_conn = redis_client.get_async_connection().await?;
-        let outbound_redis_conn = redis_client.get_async_connection().await?;
+        log::info!("connect to redis: {}", config.redis_addr);
+        let redis_client = redis::Client::open(config.redis_addr)?;
 
-        let inbound_service_starter = ServiceStarter::new_with_input(
-            ProxyInboundService::new(
-                inbound_redis_conn,
-                channels.blockchain_msg_sender,
+        let vin2worker_conn = redis_client.get_async_connection().await?;
+        let gate2vin_conn = redis_client.get_async_connection().await?;
+        let gate2vin_pub_sub = redis_client.get_async_connection().await?.into_pubsub();
+        let admin2vin_pub_sub = redis_client.get_async_connection().await?.into_pubsub();
+
+        let vin2worker_starter =
+            ServiceStarter::new(Vin2Worker::new(vin2worker_conn, channels.msg_receiver));
+        let gate2vin_starter = ServiceStarter::new_with_input(
+            Gate2Vin::new(
+                gate2vin_conn,
+                channels.blockchain_msg_sender.clone(),
                 blockchain_api,
             ),
-            inbound_pub_sub,
+            gate2vin_pub_sub,
         );
-        let outbound_service_starter = ServiceStarter::new(ProxyOutboundService::new(
-            outbound_redis_conn,
-            channels.msg_receiver,
-        ));
+        let admin2vin_starter = ServiceStarter::new_with_input(
+            Admin2Vin::new(channels.blockchain_msg_sender),
+            admin2vin_pub_sub,
+        );
 
-        Ok((inbound_service_starter, outbound_service_starter))
+        Ok((vin2worker_starter, gate2vin_starter, admin2vin_starter))
     }
 }

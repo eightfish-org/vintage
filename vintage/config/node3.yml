@@ -1,24 +1,29 @@
-dev_mode: true
+mode: Prod
 blockchain:
   db_path: vintage3.db
+  wasm_db_path: wasm3.db
 proxy:
   redis_addr: redis://127.0.0.1:6379
 node:
   block_interval: 1000
+  id: 3
   name: Node3
   listen_addr: 127.0.0.1:8003
   propose_weight: 1
   vote_weight: 1
   peers:
-    - name: Node1
+    - id: 1
+      name: Node1
       address: 127.0.0.1:8001
       propose_weight: 1
       vote_weight: 1
-    - name: Node2
+    - id: 2
+      name: Node2
       address: 127.0.0.1:8002
       propose_weight: 1
       vote_weight: 1
-    - name: Node4
+    - id: 4
+      name: Node4
       address: 127.0.0.1:8004
       propose_weight: 1
       vote_weight: 1

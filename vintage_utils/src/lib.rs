@@ -1,7 +1,9 @@
 mod activation;
 mod bincode;
+mod calc_hash;
 mod channel;
 mod data;
+mod hash;
 mod redb;
 mod send_msg;
 mod service;
@@ -9,8 +11,10 @@ mod timestamp;
 
 pub use self::activation::*;
 pub use self::bincode::*;
+pub use self::calc_hash::*;
 pub use self::channel::*;
 pub use self::data::*;
+pub use self::hash::*;
 pub use self::redb::*;
 pub use self::send_msg::*;
 pub use self::service::*;
