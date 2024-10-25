@@ -1,9 +1,10 @@
+use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActEvent, ActTx, BlockEvent, BlockHeight, MsgToProxy, UpdateEntityEvent, UpdateEntityTx,
-    WasmHash, WasmId,
+    ActEvent, ActTx, BlockEvent, BlockHash, BlockHeight, MsgToProxy, UpdateEntityEvent,
+    UpdateEntityTx, WasmHash, WasmId,
 };
-use vintage_utils::{CalcHash, SendMsg, Timestamp};
+use vintage_utils::{Hashed, SendMsg, Timestamp};
 
 #[derive(Clone)]
 pub(crate) struct MsgToProxySender {
@@ -18,6 +19,7 @@ impl MsgToProxySender {
     pub fn send_block_event(
         &self,
         height: BlockHeight,
+        block_hash: &BlockHash,
         timestamp: Timestamp,
         total_act_txs: u64,
         act_txs: Vec<ActTx>,
@@ -27,6 +29,7 @@ impl MsgToProxySender {
         self.sender
             .send_msg(MsgToProxy::BlockEvent(Self::block_event(
                 height,
+                block_hash,
                 timestamp,
                 total_act_txs,
                 act_txs,
@@ -44,6 +47,7 @@ impl MsgToProxySender {
 impl MsgToProxySender {
     fn block_event(
         height: BlockHeight,
+        block_hash: &BlockHash,
         timestamp: Timestamp,
         total_act_txs: u64,
         act_txs: Vec<ActTx>,
@@ -57,7 +61,7 @@ impl MsgToProxySender {
             act_events.push(ActEvent {
                 act_tx,
                 act_number,
-                random: act_number.calc_hash(),
+                random: calc_act_random(block_hash, act_number),
             })
         }
 
@@ -79,4 +83,11 @@ impl MsgToProxySender {
             upgrade_wasm_ids,
         }
     }
+}
+
+fn calc_act_random(block_hash: &BlockHash, act_number: u64) -> Hashed {
+    let mut hasher = Sha256::new();
+    hasher.update(block_hash);
+    hasher.update(act_number.to_be_bytes());
+    hasher.into()
 }

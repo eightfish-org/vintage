@@ -204,6 +204,7 @@ impl BlockChainCore {
         let upgrade_wasm_ids = self.blockchain_db.get_upgrade_wasm_ids(height).await?;
         self.proxy_msg_sender.send_block_event(
             height,
+            &block_hash_cloned,
             timestamp,
             total_act_txs,
             act_txs,
