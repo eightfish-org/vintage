@@ -2,8 +2,7 @@ use futures::Stream;
 use futures::StreamExt;
 use redis::Msg;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use vintage_msg::{Action, EntityHash, EntityId, Model, Proto, ReqId};
+use vintage_msg::{Action, Model, Proto};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct InputOutputObject {
@@ -33,21 +32,3 @@ pub(crate) async fn read_msg(
     );
     Ok(msg_obj)
 }
-
-pub(crate) fn payload_json<TReqData>(req_id: &ReqId, req_data: TReqData) -> serde_json::Value
-where
-    TReqData: Serialize,
-{
-    json!({
-        "reqid": req_id,
-        "reqdata": req_data,
-    })
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Payload<TReqData> {
-    pub reqid: ReqId,
-    pub reqdata: TReqData,
-}
-
-pub(crate) type EntitiesPayload = Payload<Vec<(EntityId, EntityHash)>>;

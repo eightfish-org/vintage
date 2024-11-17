@@ -1,11 +1,13 @@
 mod constants;
 mod io_object;
+mod io_playload;
 mod service_admin2vin;
 mod service_gate2vin;
 mod service_vin2worker;
 
 use self::constants::*;
 use self::io_object::*;
+use self::io_playload::*;
 pub use self::service_admin2vin::*;
 pub use self::service_gate2vin::*;
 pub use self::service_vin2worker::*;

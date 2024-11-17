@@ -1,14 +1,16 @@
 use crate::constants::{
-    ACTION_NEW_BLOCK_HEIGHT, ACTION_UPDATE_INDEX, ACTION_UPGRADE_WASM, ACTION_UPLOAD_WASM,
+    ACTION_BLOCK_HEIGHT, ACTION_UPDATE_INDEX, ACTION_UPGRADE_WASM, ACTION_UPLOAD_WASM,
 };
 use crate::VIN_2_WORKER;
-use crate::{payload_json, InputOutputObject};
+use crate::{req_payload_json, InputOutputObject};
 use async_trait::async_trait;
 use redis::aio::Connection;
 use redis::AsyncCommands;
 use serde_json::json;
 use tokio::sync::mpsc;
-use vintage_msg::{ActEvent, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, WasmHash, WasmId};
+use vintage_msg::{
+    ActEvent, BlockHash, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, WasmHash, WasmId,
+};
 use vintage_utils::{Service, Timestamp};
 
 pub struct Vin2Worker {
@@ -35,13 +37,20 @@ impl Service for Vin2Worker {
             match self.msg_receiver.recv().await {
                 Some(block_persisted) => match block_persisted {
                     MsgToProxy::BlockEvent(event) => {
+                        self.on_block_height_event(event.height, &event.block_hash)
+                            .await;
                         for ue_event in event.ue_events {
                             self.on_ue_event(ue_event).await;
                         }
                         for act_event in event.act_events {
-                            self.on_act_event(event.timestamp, act_event).await;
+                            self.on_act_event(
+                                event.height,
+                                &event.block_hash,
+                                event.timestamp,
+                                act_event,
+                            )
+                            .await;
                         }
-                        self.on_block_height_event(event.height).await;
                         for wasm_id in event.upgrade_wasm_ids {
                             self.on_upgrade_wasm_event(event.height, wasm_id).await;
                         }
@@ -59,12 +68,18 @@ impl Service for Vin2Worker {
 }
 
 impl Vin2Worker {
-    async fn on_block_height_event(&mut self, height: BlockHeight) {
+    async fn on_block_height_event(&mut self, height: BlockHeight, block_hash: &BlockHash) {
+        let playload = serde_json::to_vec(&json!({
+            "block_height": height,
+            "block_hash": block_hash,
+        }))
+        .unwrap();
+
         let output = InputOutputObject {
-            action: ACTION_NEW_BLOCK_HEIGHT.to_owned(),
+            action: ACTION_BLOCK_HEIGHT.to_owned(),
             proto: "".to_owned(),
             model: "".to_owned(),
-            data: height.to_be_bytes().to_vec(),
+            data: playload,
             ext: vec![],
         };
 
@@ -80,7 +95,7 @@ impl Vin2Worker {
         } = event;
 
         for entity_id in entity_ids {
-            let payload = payload_json(&req_id, entity_id);
+            let payload = req_payload_json(&req_id, entity_id);
 
             let output = InputOutputObject {
                 action: ACTION_UPDATE_INDEX.to_owned(),
@@ -94,8 +109,16 @@ impl Vin2Worker {
         }
     }
 
-    async fn on_act_event(&mut self, timestamp: Timestamp, event: ActEvent) {
+    async fn on_act_event(
+        &mut self,
+        height: BlockHeight,
+        block_hash: &BlockHash,
+        timestamp: Timestamp,
+        event: ActEvent,
+    ) {
         let ext = json!({
+            "block_height": height,
+            "block_hash": block_hash,
             "time": timestamp,
             "nonce": event.act_number,
             "randomvec": event.random,

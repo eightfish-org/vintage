@@ -1,6 +1,6 @@
 use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_UPDATE_INDEX};
 use crate::io_object::read_msg;
-use crate::{payload_json, EntitiesPayload, InputOutputObject};
+use crate::{req_payload_json, EntitiesReqPayload, InputOutputObject};
 use crate::{GATE_2_VIN, VIN_2_WORKER};
 use async_trait::async_trait;
 use redis::aio::{Connection, PubSub};
@@ -72,7 +72,7 @@ where
     }
 
     fn update_index(&self, object: InputOutputObject) {
-        let payload: EntitiesPayload = serde_json::from_slice(&object.data).unwrap();
+        let payload: EntitiesReqPayload = serde_json::from_slice(&object.data).unwrap();
         let entities = payload
             .reqdata
             .into_iter()
@@ -89,7 +89,7 @@ where
     }
 
     async fn check_pair_list(&mut self, msg_obj: InputOutputObject) -> anyhow::Result<()> {
-        let payload: EntitiesPayload = serde_json::from_slice(&msg_obj.data).unwrap();
+        let payload: EntitiesReqPayload = serde_json::from_slice(&msg_obj.data).unwrap();
         let entities = payload
             .reqdata
             .into_iter()
@@ -101,7 +101,7 @@ where
             .check_entities(msg_obj.proto.clone(), msg_obj.model.clone(), entities)
             .await;
 
-        let ret_payload = payload_json(&payload.reqid, check_boolean.to_string());
+        let ret_payload = req_payload_json(&payload.reqid, check_boolean.to_string());
         println!(
             "from redis: check_pair_list: ret_payload: {:?}",
             ret_payload

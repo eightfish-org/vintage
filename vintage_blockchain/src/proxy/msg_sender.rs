@@ -19,7 +19,7 @@ impl MsgToProxySender {
     pub fn send_block_event(
         &self,
         height: BlockHeight,
-        block_hash: &BlockHash,
+        block_hash: BlockHash,
         timestamp: Timestamp,
         total_act_txs: u64,
         act_txs: Vec<ActTx>,
@@ -47,21 +47,22 @@ impl MsgToProxySender {
 impl MsgToProxySender {
     fn block_event(
         height: BlockHeight,
-        block_hash: &BlockHash,
+        block_hash: BlockHash,
         timestamp: Timestamp,
-        total_act_txs: u64,
+        _total_act_txs: u64,
         act_txs: Vec<ActTx>,
         ue_txs: Vec<UpdateEntityTx>,
         upgrade_wasm_ids: Vec<WasmId>,
     ) -> BlockEvent {
-        let mut act_number = total_act_txs - act_txs.len() as u64;
+        // let mut act_number = total_act_txs - act_txs.len() as u64;
+        let mut act_number = 0;
         let mut act_events = Vec::new();
         for act_tx in act_txs {
             act_number += 1;
             act_events.push(ActEvent {
                 act_tx,
                 act_number,
-                random: calc_act_random(block_hash, act_number),
+                random: calc_act_random(&block_hash, act_number),
             })
         }
 
@@ -77,6 +78,7 @@ impl MsgToProxySender {
 
         BlockEvent {
             height,
+            block_hash,
             timestamp,
             act_events,
             ue_events,
