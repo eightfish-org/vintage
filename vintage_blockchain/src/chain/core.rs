@@ -316,7 +316,7 @@ impl BlockChainCore {
         for wasm_tx in wasm_txs {
             hasher.update(&wasm_tx.wasm_id.proto);
             hasher.update(&wasm_tx.wasm_id.wasm_hash);
-            hasher.update(wasm_tx.wasm_info.block_interval.to_be_bytes());
+            hasher.update(wasm_tx.wasm_info.after_blocks.to_be_bytes());
         }
         hasher.update(prev_hash);
         hasher.into()

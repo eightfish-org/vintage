@@ -242,7 +242,7 @@ impl BlockChainService {
         let UploadWasm {
             proto,
             wasm_binary,
-            block_interval,
+            after_blocks,
         } = upload_wasm;
 
         let wasm_hash = wasm_binary.calc_hash();
@@ -268,7 +268,7 @@ impl BlockChainService {
             );
         }
 
-        self.put_wasm_tx_to_pool(WasmId { proto, wasm_hash }, WasmInfo { block_interval })
+        self.put_wasm_tx_to_pool(WasmId { proto, wasm_hash }, WasmInfo { after_blocks })
             .await?;
 
         Ok(())

@@ -18,6 +18,7 @@ use vintage_utils::ServiceStarter;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProxyConfig {
+    pub min_after_blocks: u64,
     pub redis_addr: String,
 }
 
@@ -55,7 +56,7 @@ impl Proxy {
             gate2vin_pub_sub,
         );
         let admin2vin_starter = ServiceStarter::new_with_input(
-            Admin2Vin::new(channels.blockchain_msg_sender),
+            Admin2Vin::new(config.min_after_blocks, channels.blockchain_msg_sender),
             admin2vin_pub_sub,
         );
 

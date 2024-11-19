@@ -78,7 +78,7 @@ pub struct WasmId {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WasmInfo {
-    pub block_interval: u64,
+    pub after_blocks: u64,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]

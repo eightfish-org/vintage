@@ -223,7 +223,7 @@ impl BlockChainDbInner {
             let mut table_wasm_tx = WasmTxTableW::open_table(&db_write)?;
             for wasm_tx in block.wasm_txs {
                 table_wasm_tx.insert_wasm_tx(&wasm_tx.wasm_id, &wasm_tx.wasm_info)?;
-                match height_to_wasm_ids.entry(height + wasm_tx.wasm_info.block_interval) {
+                match height_to_wasm_ids.entry(height + wasm_tx.wasm_info.after_blocks) {
                     Entry::Occupied(mut entry) => {
                         entry.get_mut().push(wasm_tx.wasm_id);
                     }
