@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
 use tokio::sync::mpsc;
-use vintage_msg::{ActTx, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
+use vintage_msg::{ActTx, BlockChainApi, MsgToBlockChain, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
 
 pub struct Gate2Vin<TApi> {
@@ -72,47 +72,37 @@ where
     }
 
     fn update_index(&self, object: InputOutputObject) {
-        let payload: EntitiesReqPayload = serde_json::from_slice(&object.data).unwrap();
-        let entities = payload
-            .reqdata
-            .into_iter()
-            .map(|(id, hash)| Entity { id, hash })
-            .collect();
+        let entities_payload: EntitiesReqPayload = serde_json::from_slice(&object.data).unwrap();
 
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UpdateEntityTx(UpdateEntityTx {
                 proto: object.proto,
-                model: object.model,
-                req_id: payload.reqid,
-                entities,
+                req_id: entities_payload.reqid,
+                entities: entities_payload.reqdata,
             }));
     }
 
     async fn check_pair_list(&mut self, msg_obj: InputOutputObject) -> anyhow::Result<()> {
-        let payload: EntitiesReqPayload = serde_json::from_slice(&msg_obj.data).unwrap();
-        let entities = payload
-            .reqdata
-            .into_iter()
-            .map(|(id, hash)| Entity { id, hash })
-            .collect();
+        let entities_payload: EntitiesReqPayload = serde_json::from_slice(&msg_obj.data).unwrap();
 
         let check_boolean: bool = self
             .blockchain_api
-            .check_entities(msg_obj.proto.clone(), msg_obj.model.clone(), entities)
+            .check_entities(
+                msg_obj.proto.clone(),
+                msg_obj.model.clone(),
+                entities_payload.reqdata,
+            )
             .await;
 
-        let ret_payload = req_payload_json(&payload.reqid, check_boolean.to_string());
-        println!(
-            "from redis: check_pair_list: ret_payload: {:?}",
-            ret_payload
-        );
+        let payload = req_payload_json(&entities_payload.reqid, check_boolean.to_string());
+        println!("from redis: check_pair_list: ret_payload: {:?}", payload);
 
         // send packet back to the spin runtime
         let output = InputOutputObject {
             action: msg_obj.action,
             proto: msg_obj.proto.clone(),
             model: msg_obj.model,
-            data: ret_payload.to_string().as_bytes().to_vec(),
+            data: payload.to_string().as_bytes().to_vec(),
             ext: vec![],
         };
         let output_string = serde_json::to_vec(&output).unwrap();

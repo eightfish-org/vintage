@@ -35,24 +35,25 @@ impl Service for Vin2Worker {
     async fn service(mut self, _input: Self::Input) -> Self::Output {
         loop {
             match self.msg_receiver.recv().await {
-                Some(block_persisted) => match block_persisted {
-                    MsgToProxy::BlockEvent(event) => {
-                        self.on_block_height_event(event.height, &event.block_hash)
+                Some(msg) => match msg {
+                    MsgToProxy::BlockEvent(block_event) => {
+                        self.on_block_height_event(block_event.height, &block_event.block_hash)
                             .await;
-                        for ue_event in event.ue_events {
+                        for ue_event in block_event.ue_events {
                             self.on_ue_event(ue_event).await;
                         }
-                        for act_event in event.act_events {
+                        for act_event in block_event.act_events {
                             self.on_act_event(
-                                event.height,
-                                &event.block_hash,
-                                event.timestamp,
+                                block_event.height,
+                                &block_event.block_hash,
+                                block_event.timestamp,
                                 act_event,
                             )
                             .await;
                         }
-                        for wasm_id in event.upgrade_wasm_ids {
-                            self.on_upgrade_wasm_event(event.height, wasm_id).await;
+                        for wasm_id in block_event.upgrade_wasm_ids {
+                            self.on_upgrade_wasm_event(block_event.height, wasm_id)
+                                .await;
                         }
                     }
                     MsgToProxy::WasmBinary(wasm_hash, wasm_binary) => {
@@ -87,26 +88,18 @@ impl Vin2Worker {
     }
 
     async fn on_ue_event(&mut self, event: UpdateEntityEvent) {
-        let UpdateEntityEvent {
-            proto,
-            model,
-            req_id,
-            entity_ids,
-        } = event;
+        let payload = req_payload_json(&event.req_id, &event.entity_keys);
 
-        for entity_id in entity_ids {
-            let payload = req_payload_json(&req_id, entity_id);
+        let proto = event.proto.clone();
+        let output = InputOutputObject {
+            action: ACTION_UPDATE_INDEX.to_owned(),
+            proto: event.proto,
+            model: "".to_owned(),
+            data: payload.to_string().as_bytes().to_vec(),
+            ext: vec![],
+        };
 
-            let output = InputOutputObject {
-                action: ACTION_UPDATE_INDEX.to_owned(),
-                proto: proto.clone(),
-                model: model.clone(),
-                data: payload.to_string().as_bytes().to_vec(),
-                ext: vec![],
-            };
-
-            self.publish_vin_2_worker(Some(&proto), &output).await;
-        }
+        self.publish_vin_2_worker(Some(&proto), &output).await;
     }
 
     async fn on_act_event(
@@ -180,8 +173,8 @@ impl Vin2Worker {
 
         let result: Result<u32, redis::RedisError> =
             self.redis_conn.publish(channel, output_bytes).await;
-        if let Err(_err) = result {
-            // log::error!("Error publishing to redis: {:?}", err);
+        if let Err(err) = result {
+            log::error!("Error publishing to redis: {:?}", err);
         }
     }
 }

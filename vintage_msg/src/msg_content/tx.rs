@@ -35,8 +35,15 @@ impl CalcHash for ActTx {
 pub type EntityId = String;
 pub type EntityHash = String;
 
+#[derive(Serialize)]
+pub struct EntityKey {
+    pub model: Model,
+    pub id: EntityId,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entity {
+    pub model: Model,
     pub id: EntityId,
     pub hash: EntityHash,
 }
@@ -46,7 +53,6 @@ pub type ReqId = String;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateEntityTx {
     pub proto: Proto,
-    pub model: Model,
     pub req_id: ReqId,
     pub entities: Vec<Entity>,
 }
@@ -55,9 +61,9 @@ impl CalcHash for UpdateEntityTx {
     fn calc_hash(&self) -> Hashed {
         let mut hasher = Sha256::new();
         hasher.update(&self.proto);
-        hasher.update(&self.model);
         hasher.update(&self.req_id);
         for entity in &self.entities {
+            hasher.update(&entity.model);
             hasher.update(&entity.id);
             hasher.update(&entity.hash);
         }

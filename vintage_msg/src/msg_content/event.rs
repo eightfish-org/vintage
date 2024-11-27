@@ -1,4 +1,4 @@
-use crate::{ActTx, BlockHash, BlockHeight, EntityId, Model, Proto, ReqId, WasmId};
+use crate::{ActTx, BlockHash, BlockHeight, EntityKey, Proto, ReqId, WasmId};
 use vintage_utils::{Hashed, Timestamp};
 
 pub struct BlockEvent {
@@ -18,7 +18,6 @@ pub struct ActEvent {
 
 pub struct UpdateEntityEvent {
     pub proto: Proto,
-    pub model: Model,
     pub req_id: ReqId,
-    pub entity_ids: Vec<EntityId>,
+    pub entity_keys: Vec<EntityKey>,
 }
