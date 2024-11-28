@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Mutex, MutexGuard};
-use vintage_msg::{ActTx, WasmId, WasmInfo};
+use vintage_msg::{ActTx, WasmTx};
 use vintage_utils::Hashed;
 
 pub(crate) type TxId = Hashed;
 
 pub(crate) struct TxPool {
     act_txs: Mutex<HashMap<TxId, ActTx>>,
-    wasm_txs: Mutex<HashMap<WasmId, WasmInfo>>,
+    wasm_txs: Mutex<HashMap<TxId, WasmTx>>,
 }
 
 impl TxPool {
@@ -23,7 +23,7 @@ impl TxPool {
         self.act_txs.lock().unwrap()
     }
 
-    pub fn wasm_txs_guard(&self) -> MutexGuard<'_, HashMap<WasmId, WasmInfo>> {
+    pub fn wasm_txs_guard(&self) -> MutexGuard<'_, HashMap<TxId, WasmTx>> {
         self.wasm_txs.lock().unwrap()
     }
 }

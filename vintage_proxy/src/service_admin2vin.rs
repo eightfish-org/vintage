@@ -48,22 +48,20 @@ impl Service for Admin2Vin {
 
 impl Admin2Vin {
     fn upload_wasm(&self, object: InputOutputObject) -> anyhow::Result<()> {
-        #[allow(dead_code)]
         #[derive(Deserialize)]
-        struct UploadWasmReq {
-            // proto: Proto,
-            // version: String,
-            // digest: String,
-            // timestamp: Timestamp,
+        struct Payload {
+            wasm_file: Vec<u8>,
+            sql_file: String,
             afterblocks: u64,
         }
-        let req: UploadWasmReq = serde_json::from_str(&object.model)?;
+        let payload: Payload = serde_json::from_slice(&object.data)?;
 
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UploadWasm(UploadWasm {
                 proto: object.proto,
-                wasm_binary: object.ext,
-                after_blocks: max(self.min_after_blocks, req.afterblocks),
+                wasm_binary: payload.wasm_file,
+                sql: payload.sql_file,
+                after_blocks: max(max(10, self.min_after_blocks), payload.afterblocks),
             }));
 
         Ok(())

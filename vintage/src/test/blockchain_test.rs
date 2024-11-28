@@ -30,6 +30,7 @@ pub(super) async fn send_wasm_to_blockchain(sender: mpsc::Sender<MsgToBlockChain
         sender.send_msg(MsgToBlockChain::UploadWasm(UploadWasm {
             proto: "proto2".to_string(),
             wasm_binary: random_bytes(),
+            sql: "".to_owned(),
             after_blocks: 10,
         }));
     }

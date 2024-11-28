@@ -1,12 +1,13 @@
 use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_UPDATE_INDEX};
 use crate::io_object::read_msg;
-use crate::{req_payload_json, EntitiesReqPayload, InputOutputObject};
+use crate::io_playload::ReqPayload;
+use crate::{req_payload_json, InputOutputObject};
 use crate::{GATE_2_VIN, VIN_2_WORKER};
 use async_trait::async_trait;
 use redis::aio::{Connection, PubSub};
 use redis::AsyncCommands;
 use tokio::sync::mpsc;
-use vintage_msg::{ActTx, BlockChainApi, MsgToBlockChain, UpdateEntityTx};
+use vintage_msg::{ActTx, BlockChainApi, Entity, MsgToBlockChain, UpdateEntityTx};
 use vintage_utils::{SendMsg, Service};
 
 pub struct Gate2Vin<TApi> {
@@ -72,7 +73,8 @@ where
     }
 
     fn update_index(&self, object: InputOutputObject) {
-        let entities_payload: EntitiesReqPayload = serde_json::from_slice(&object.data).unwrap();
+        let entities_payload: ReqPayload<Vec<Entity>> =
+            serde_json::from_slice(&object.data).unwrap();
 
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UpdateEntityTx(UpdateEntityTx {
@@ -83,7 +85,8 @@ where
     }
 
     async fn check_pair_list(&mut self, msg_obj: InputOutputObject) -> anyhow::Result<()> {
-        let entities_payload: EntitiesReqPayload = serde_json::from_slice(&msg_obj.data).unwrap();
+        let entities_payload: ReqPayload<Vec<Entity>> =
+            serde_json::from_slice(&msg_obj.data).unwrap();
 
         let check_boolean: bool = self
             .blockchain_api

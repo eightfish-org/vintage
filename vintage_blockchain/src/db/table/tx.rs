@@ -1,4 +1,4 @@
-use vintage_msg::{ActTx, UpdateEntityTx};
+use vintage_msg::{ActTx, UpdateEntityTx, WasmTx};
 
 macro_rules! define_tx_table {
     ($vis:vis ($table:ident, $table_r:ident, $table_w:ident) = ($tx:ty, $table_name:literal)) => {
@@ -52,8 +52,11 @@ define_tx_table! {
     pub(crate) (ActTxTable, ActTxTableR, ActTxTableW) = (ActTx, "act_tx")
 }
 define_tx_table! {
-    pub(crate) (UpdateEntityTxTable, UpdateEntityTxTableR, UpdateEntityTxTableW)= (UpdateEntityTx, "update_entity_tx")
+    pub(crate) (UpdateEntityTxTable, UpdateEntityTxTableR, UpdateEntityTxTableW) = (UpdateEntityTx, "update_entity_tx")
 }
 define_tx_table! {
     pub(crate) (UpdateEntityTxPoolTable, UpdateEntityTxPoolTableR, UpdateEntityTxPoolTableW) = (UpdateEntityTx, "update_entity_tx_pool")
+}
+define_tx_table! {
+    pub(crate) (WasmTxTable, WasmTxTableR, WasmTxTableW) = (WasmTx, "wasm_tx")
 }

@@ -5,8 +5,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 use vintage_msg::{
-    Block, BlockHash, BlockHeight, EntityHash, EntityId, Model, Proto, UpdateEntityTx, WasmId,
-    WasmInfo,
+    ActTx, Block, BlockHash, BlockHeight, BlockTimestamp, EntityHash, EntityId, Model, Proto,
+    UpdateEntityTx, WasmTx,
 };
 
 #[derive(Clone)]
@@ -38,12 +38,12 @@ impl BlockChainDb {
     pub async fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
         if height == GENESIS_BLOCK_HEIGHT {
             Ok(BlockInDb {
-                hash: GENESIS_BLOCK_HASH,
+                block_hash: GENESIS_BLOCK_HASH,
                 timestamp: GENESIS_BLOCK_TIMESTAMP,
                 state: BlockState { total_act_txs: 0 },
                 act_tx_ids: Default::default(),
                 ue_tx_ids: Default::default(),
-                wasm_ids: Default::default(),
+                wasm_tx_ids: Default::default(),
             })
         } else {
             let db = self.db.clone();
@@ -103,27 +103,22 @@ impl BlockChainDb {
         spawn_blocking(move || db.get_entity(&proto, &model, &entity_id)).await?
     }
 
-    pub async fn check_wasm_tx_not_exists(&self, wasm_id: WasmId) -> anyhow::Result<()> {
+    pub async fn check_wasm_tx_not_exists(&self, tx_id: TxId) -> anyhow::Result<()> {
         let db = self.db.clone();
-        spawn_blocking(move || db.check_wasm_tx_not_exists(&wasm_id)).await?
+        spawn_blocking(move || db.check_wasm_tx_not_exists(&tx_id)).await?
     }
 
-    pub async fn check_wasm_txs_not_exist(&self, wasm_id: Vec<WasmId>) -> anyhow::Result<()> {
+    pub async fn check_wasm_txs_not_exist(&self, tx_id: Vec<TxId>) -> anyhow::Result<()> {
         let db = self.db.clone();
-        spawn_blocking(move || db.check_wasm_txs_not_exist(&wasm_id)).await?
+        spawn_blocking(move || db.check_wasm_txs_not_exist(&tx_id)).await?
     }
 
-    pub async fn get_upgrade_wasm_ids(
+    pub async fn get_upgrade_wasm_txs(
         &self,
         block_height: BlockHeight,
-    ) -> anyhow::Result<Vec<WasmId>> {
+    ) -> anyhow::Result<Vec<WasmTx>> {
         let db = self.db.clone();
-        spawn_blocking(move || db.get_upgrade_wasm_ids(block_height)).await?
-    }
-
-    pub async fn _get_wasm_tx(&self, wasm_id: WasmId) -> anyhow::Result<WasmInfo> {
-        let db = self.db.clone();
-        spawn_blocking(move || db._get_wasm_tx(&wasm_id)).await?
+        spawn_blocking(move || db.get_upgrade_wasm_txs(block_height)).await?
     }
 }
 
@@ -141,16 +136,18 @@ impl BlockChainDb {
     pub async fn commit_block(
         &self,
         height: BlockHeight,
-        hash: BlockHash,
+        block_hash: BlockHash,
+        timestamp: BlockTimestamp,
         state: BlockState,
-        act_tx_ids: Vec<TxId>,
-        ue_tx_ids: Vec<TxId>,
-        wasm_ids: Vec<WasmId>,
-        block: Block,
+        act_txs: Vec<ActTx>,
+        ue_txs: Vec<UpdateEntityTx>,
+        wasm_txs: Vec<WasmTx>,
     ) -> anyhow::Result<()> {
         let db = self.db.clone();
         spawn_blocking(move || {
-            db.commit_block(height, hash, state, act_tx_ids, ue_tx_ids, wasm_ids, block)
+            db.commit_block(
+                height, block_hash, timestamp, state, act_txs, ue_txs, wasm_txs,
+            )
         })
         .await?
     }

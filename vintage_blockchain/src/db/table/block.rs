@@ -3,7 +3,7 @@ use crate::tx::TxId;
 use anyhow::anyhow;
 use redb::ReadableTable;
 use serde::{Deserialize, Serialize};
-use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, WasmId};
+use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize, RedbBytes};
 
 define_redb_table! {
@@ -12,12 +12,12 @@ define_redb_table! {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct BlockInDb {
-    pub hash: BlockHash,
+    pub block_hash: BlockHash,
     pub timestamp: BlockTimestamp,
     pub state: BlockState,
     pub act_tx_ids: Vec<TxId>,
     pub ue_tx_ids: Vec<TxId>,
-    pub wasm_ids: Vec<WasmId>,
+    pub wasm_tx_ids: Vec<TxId>,
 }
 
 impl<TABLE> BlockTable<TABLE>

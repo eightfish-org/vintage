@@ -9,7 +9,8 @@ use redis::AsyncCommands;
 use serde_json::json;
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActEvent, BlockHash, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, WasmHash, WasmId,
+    ActEvent, BlockHash, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, UpgradeWasmEvent,
+    UploadWasmEvent,
 };
 use vintage_utils::{Service, Timestamp};
 
@@ -51,13 +52,13 @@ impl Service for Vin2Worker {
                             )
                             .await;
                         }
-                        for wasm_id in block_event.upgrade_wasm_ids {
-                            self.on_upgrade_wasm_event(block_event.height, wasm_id)
+                        for upgrade_wasm_events in block_event.upgrade_wasm_events {
+                            self.on_upgrade_wasm_event(block_event.height, upgrade_wasm_events)
                                 .await;
                         }
                     }
-                    MsgToProxy::WasmBinary(wasm_hash, wasm_binary) => {
-                        self.on_upload_wasm_event(wasm_hash, wasm_binary).await;
+                    MsgToProxy::UploadWasmEvent(event) => {
+                        self.on_upload_wasm_event(event).await;
                     }
                 },
                 None => {
@@ -129,36 +130,36 @@ impl Vin2Worker {
         self.publish_vin_2_worker(Some(&proto), &output).await;
     }
 
-    async fn on_upload_wasm_event(&mut self, wasm_hash: WasmHash, wasm_binary: Vec<u8>) {
+    async fn on_upload_wasm_event(&mut self, event: UploadWasmEvent) {
         log::info!(
             "upload wasm event to worker, hash: {}, size: {}B",
-            wasm_hash,
-            wasm_binary.len()
+            event.wasm_hash,
+            event.wasm_binary.len()
         );
 
         let output = InputOutputObject {
             action: ACTION_UPLOAD_WASM.to_string(),
             proto: "".to_owned(),
             model: "".to_owned(),
-            data: wasm_hash.as_bytes().into(),
-            ext: wasm_binary,
+            data: event.wasm_hash.as_bytes().into(),
+            ext: event.wasm_binary,
         };
         self.publish_vin_2_worker(None, &output).await;
     }
 
-    async fn on_upgrade_wasm_event(&mut self, block_height: BlockHeight, wasm_id: WasmId) {
+    async fn on_upgrade_wasm_event(&mut self, block_height: BlockHeight, event: UpgradeWasmEvent) {
         log::info!(
             "upgrade wasm event to worker, height: {}, proto: {}, hash: {}",
             block_height,
-            wasm_id.proto,
-            wasm_id.wasm_hash
+            event.proto,
+            event.wasm_hash
         );
 
         let output = InputOutputObject {
             action: ACTION_UPGRADE_WASM.to_string(),
-            proto: wasm_id.proto,
+            proto: event.proto,
             model: "".to_owned(),
-            data: wasm_id.wasm_hash.as_bytes().into(),
+            data: event.wasm_hash.as_bytes().into(),
             ext: vec![],
         };
         self.publish_vin_2_worker(None, &output).await;

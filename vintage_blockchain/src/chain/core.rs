@@ -10,7 +10,7 @@ use anyhow::anyhow;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use std::time::Duration;
-use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, WasmId, WasmTx};
+use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, UpdateEntityTx, WasmHash, WasmTx};
 use vintage_utils::{current_timestamp, CalcHash, ServiceStarter, Timestamp};
 
 pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
@@ -64,7 +64,7 @@ impl BlockChainCore {
             .blockchain_db
             .get_ue_txs_in_pool(MAX_UE_TX_COUNT_PER_BLOCK)
             .await?;
-        let wasm_txs = { get_wasm_txs_from_pool(&self.tx_pool.wasm_txs_guard()) };
+        let (wasm_tx_ids, wasm_txs) = { get_wasm_txs_from_pool(&self.tx_pool.wasm_txs_guard()) };
 
         // state
         let state = Self::block_state(&prev_block, &act_txs);
@@ -77,8 +77,8 @@ impl BlockChainCore {
             &state,
             &act_tx_ids,
             &ue_tx_ids,
-            &wasm_txs,
-            &prev_block.hash,
+            &wasm_tx_ids,
+            &prev_block.block_hash,
         );
 
         // new block
@@ -97,13 +97,15 @@ impl BlockChainCore {
         &self,
         height: u64,
         block: &Block,
-        hash: &BlockHash,
+        block_hash: &BlockHash,
     ) -> anyhow::Result<()> {
         // prev block
         let prev_block = self.get_block(height - 1).await?;
 
         // tx
-        let (act_tx_ids, ue_tx_ids, wasm_ids) = Self::tx_keys_of(block);
+        let act_tx_ids = Self::act_tx_ids_of(&block.act_txs);
+        let ue_tx_ids = Self::ue_tx_ids_of(&block.ue_txs);
+        let wasm_tx_ids = Self::wasm_tx_ids_of(&block.wasm_txs);
         self.blockchain_db
             .check_act_txs_not_exist(act_tx_ids.clone())
             .await?;
@@ -112,7 +114,7 @@ impl BlockChainCore {
             .await?;
         self.check_ue_txs_exist_in_pool(ue_tx_ids.clone()).await?;
         self.blockchain_db
-            .check_wasm_txs_not_exist(wasm_ids)
+            .check_wasm_txs_not_exist(wasm_tx_ids.clone())
             .await?;
 
         // state
@@ -125,13 +127,13 @@ impl BlockChainCore {
             &state,
             &act_tx_ids,
             &ue_tx_ids,
-            &block.wasm_txs,
-            &prev_block.hash,
+            &wasm_tx_ids,
+            &prev_block.block_hash,
         );
-        if *hash == calc_hash {
+        if *block_hash == calc_hash {
             Ok(())
         } else {
-            Err(anyhow!("block hash, {} != {}", hash, calc_hash).into())
+            Err(anyhow!("block hash, {} != {}", block_hash, calc_hash).into())
         }
     }
 
@@ -139,57 +141,56 @@ impl BlockChainCore {
         &mut self,
         height: u64,
         block: Block,
-        hash: BlockHash,
+        block_hash: BlockHash,
     ) -> anyhow::Result<()> {
         self.check_block_height(height).await?;
         // prev block
         let prev_block = self.get_block(height - 1).await?;
 
         // tx
-        let (act_tx_ids, ue_tx_ids, wasm_ids) = Self::tx_keys_of(&block);
-        let act_txs = block.act_txs.clone();
-        let ue_txs = block.ue_txs.clone();
+        let act_tx_ids = Self::act_tx_ids_of(&block.act_txs);
+        let wasm_tx_ids = Self::wasm_tx_ids_of(&block.wasm_txs);
 
         // state
         let state = Self::block_state(&prev_block, &block.act_txs);
 
         // commit block
-        let block_hash_cloned = hash.clone();
-        let timestamp = block.timestamp;
-        let total_act_txs = state.total_act_txs;
-        self.try_insert_download_wasm_tasks(&wasm_ids).await;
+        for wasm_tx in &block.wasm_txs {
+            self.try_insert_download_wasm_task(wasm_tx.wasm_hash.clone())
+                .await;
+        }
         self.blockchain_db
             .commit_block(
                 height,
-                hash,
-                state,
-                act_tx_ids.clone(),
-                ue_tx_ids,
-                wasm_ids.clone(),
-                block,
+                block_hash.clone(),
+                block.timestamp,
+                state.clone(),
+                block.act_txs.clone(),
+                block.ue_txs.clone(),
+                block.wasm_txs,
             )
             .await?;
 
-        if wasm_ids.is_empty() {
+        if wasm_tx_ids.is_empty() {
             log::info!(
                 "block commited, height: {},\nhash: {}, timestamp: {}, total_act_txs: {}, act_txs: {}, ue_txs: {}",
                 height,
-                block_hash_cloned,
-                timestamp,
-                total_act_txs,
-                act_txs.len(),
-                ue_txs.len(),
+                block_hash,
+                block.timestamp,
+                state.total_act_txs,
+                block.act_txs.len(),
+                block.ue_txs.len(),
             );
         } else {
             log::info!(
                 "block commited, height: {},\nhash: {}, timestamp: {}, total_act_txs: {}, act_txs: {}, ue_txs: {}, wasm_txs: {}",
                 height,
-                block_hash_cloned,
-                timestamp,
-                total_act_txs,
-                act_txs.len(),
-                ue_txs.len(),
-                wasm_ids.len(),
+                block_hash,
+                block.timestamp,
+                state.total_act_txs,
+                block.act_txs.len(),
+                block.ue_txs.len(),
+                wasm_tx_ids.len(),
             );
         }
 
@@ -199,17 +200,17 @@ impl BlockChainCore {
             remove_txs_from_pool(&mut self.tx_pool.act_txs_guard(), &act_tx_ids);
         }
         {
-            remove_txs_from_pool(&mut self.tx_pool.wasm_txs_guard(), &wasm_ids);
+            remove_txs_from_pool(&mut self.tx_pool.wasm_txs_guard(), &wasm_tx_ids);
         }
-        let upgrade_wasm_ids = self.blockchain_db.get_upgrade_wasm_ids(height).await?;
+        let upgrade_wasm_txs = self.blockchain_db.get_upgrade_wasm_txs(height).await?;
         self.proxy_msg_sender.send_block_event(
             height,
-            block_hash_cloned,
-            timestamp,
-            total_act_txs,
-            act_txs,
-            ue_txs,
-            upgrade_wasm_ids,
+            block_hash,
+            block.timestamp,
+            state.total_act_txs,
+            block.act_txs,
+            block.ue_txs,
+            upgrade_wasm_txs,
         );
 
         Ok(())
@@ -219,10 +220,10 @@ impl BlockChainCore {
         &mut self,
         block_height: BlockHeight,
         block: Block,
-        hash: BlockHash,
+        block_hash: BlockHash,
     ) -> anyhow::Result<()> {
-        self.check_block(block_height, &block, &hash).await?;
-        self.commit_block(block_height, block, hash).await?;
+        self.check_block(block_height, &block, &block_hash).await?;
+        self.commit_block(block_height, block, block_hash).await?;
         Ok(())
     }
 }
@@ -272,20 +273,16 @@ impl BlockChainCore {
         Ok(())
     }
 
-    fn tx_keys_of(block: &Block) -> (Vec<TxId>, Vec<TxId>, Vec<WasmId>) {
-        (
-            block
-                .act_txs
-                .iter()
-                .map(|act_tx| act_tx.calc_hash())
-                .collect(),
-            block.ue_txs.iter().map(|ue_tx| ue_tx.calc_hash()).collect(),
-            block
-                .wasm_txs
-                .iter()
-                .map(|wasm_tx| wasm_tx.wasm_id.clone())
-                .collect(),
-        )
+    fn act_tx_ids_of(txs: &[ActTx]) -> Vec<TxId> {
+        txs.iter().map(|tx| tx.calc_hash()).collect()
+    }
+
+    fn ue_tx_ids_of(txs: &[UpdateEntityTx]) -> Vec<TxId> {
+        txs.iter().map(|tx| tx.calc_hash()).collect()
+    }
+
+    fn wasm_tx_ids_of(txs: &[WasmTx]) -> Vec<TxId> {
+        txs.iter().map(|tx| tx.calc_hash()).collect()
     }
 
     fn block_state(prev_block: &BlockInDb, act_txs: &[ActTx]) -> BlockState {
@@ -300,7 +297,7 @@ impl BlockChainCore {
         state: &BlockState,
         act_tx_ids: &[TxId],
         ue_tx_ids: &[TxId],
-        wasm_txs: &[WasmTx],
+        wasm_tx_ids: &[TxId],
         prev_hash: &BlockHash,
     ) -> BlockHash {
         let mut hasher = Sha256::new();
@@ -313,40 +310,32 @@ impl BlockChainCore {
         for ue_tx_id in ue_tx_ids {
             hasher.update(ue_tx_id);
         }
-        for wasm_tx in wasm_txs {
-            hasher.update(&wasm_tx.wasm_id.proto);
-            hasher.update(&wasm_tx.wasm_id.wasm_hash);
-            hasher.update(wasm_tx.wasm_info.after_blocks.to_be_bytes());
+        for wasm_tx_id in wasm_tx_ids {
+            hasher.update(&wasm_tx_id);
         }
         hasher.update(prev_hash);
         hasher.into()
     }
 
-    async fn try_insert_download_wasm_tasks(&self, wasm_ids: &[WasmId]) {
-        for wasm_id in wasm_ids {
-            match self
-                .wasm_db
-                .try_insert_download_wasm_task(wasm_id.wasm_hash.clone())
-                .await
-            {
-                Ok(insert) => {
-                    if insert {
-                        ServiceStarter::new(DownloadWasmTask::new(
-                            self.wasm_db.clone(),
-                            self.proxy_msg_sender.clone(),
-                            self.client.clone(),
-                            wasm_id.wasm_hash.clone(),
-                        ))
-                        .start();
-                    }
+    async fn try_insert_download_wasm_task(&self, wasm_hash: WasmHash) {
+        match self
+            .wasm_db
+            .try_insert_download_wasm_task(wasm_hash.clone())
+            .await
+        {
+            Ok(insert) => {
+                if insert {
+                    ServiceStarter::new(DownloadWasmTask::new(
+                        self.wasm_db.clone(),
+                        self.proxy_msg_sender.clone(),
+                        self.client.clone(),
+                        wasm_hash,
+                    ))
+                    .start();
                 }
-                Err(err) => {
-                    log::error!(
-                        "try_insert_download_wasm_task {} err: {:?}",
-                        wasm_id.wasm_hash,
-                        err
-                    );
-                }
+            }
+            Err(err) => {
+                log::error!("try_insert_download_wasm_task {} err: {:?}", wasm_hash, err);
             }
         }
     }
