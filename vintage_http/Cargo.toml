@@ -1,0 +1,16 @@
+[package]
+name = "vintage_http"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = { version = "0.1.80" }
+axum = { version = "0.6.20" }
+hyper = { version = "0.14.27" }
+log = { version = "0.4.21" }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = { version = "1.0.117" }
+# vintage
+vintage_utils = { path = "../vintage_utils" }
+vintage_msg = { path = "../vintage_msg" }
+vintage_meta_data = { path = "../vintage_meta_data" }

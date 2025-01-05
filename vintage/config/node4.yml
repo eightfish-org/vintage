@@ -3,8 +3,12 @@ blockchain:
   db_path: vintage4.db
   wasm_db_path: wasm4.db
 proxy:
-  min_after_blocks: 10
   redis_addr: redis://127.0.0.1:6379
+  min_after_blocks: 10
+http:
+  port: 8084
+meta_data:
+  db_path: meta_data_4.db
 node:
   block_interval: 1000
   id: 4

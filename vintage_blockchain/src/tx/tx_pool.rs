@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Mutex, MutexGuard};
-use vintage_msg::{ActTx, WasmTx};
-use vintage_utils::Hashed;
-
-pub(crate) type TxId = Hashed;
+use vintage_msg::{ActTx, TxId, WasmTx};
 
 pub(crate) struct TxPool {
     act_txs: Mutex<HashMap<TxId, ActTx>>,

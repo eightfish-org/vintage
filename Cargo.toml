@@ -3,6 +3,8 @@ members = [
     "vintage",
     "vintage_blockchain",
     "vintage_consensus",
+    "vintage_http",
+    "vintage_meta_data",
     "vintage_msg",
     "vintage_network",
     "vintage_proxy",

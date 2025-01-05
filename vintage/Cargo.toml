@@ -15,10 +15,13 @@ serde = { version = "1.0.203", features = ["derive"] }
 serde_yaml = { version = "0.9" }
 serde_json = { version = "1.0.117" }
 tokio = { version = "1.38.0" }
+uuid = { version = "1.8.0", features = ["v4"] }
 # vintage
 vintage_proxy = { path = "../vintage_proxy" }
 vintage_blockchain = { path = "../vintage_blockchain" }
 vintage_consensus = { path = "../vintage_consensus" }
 vintage_network = { path = "../vintage_network" }
+vintage_meta_data = { path = "../vintage_meta_data" }
+vintage_http = { path = "../vintage_http" }
 vintage_msg = { path = "../vintage_msg" }
 vintage_utils = { path = "../vintage_utils" }

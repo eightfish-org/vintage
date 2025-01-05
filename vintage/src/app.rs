@@ -27,7 +27,7 @@ impl Vintage {
         blockchain_chn: BlockChainMsgChannels,
         proxy_chn: ProxyMsgChannels,
         client: NetworkClient,
-    ) -> anyhow::Result<(Self, BlockConsensusImpl)> {
+    ) -> anyhow::Result<(Self, BlockConsensusImpl, BlockChainApiImpl)> {
         let (
             block_consensus,
             blockchain_api,
@@ -43,7 +43,7 @@ impl Vintage {
         )
         .await?;
         let (vin_2_worker_service, gate_2_vin_service, admin_2_vin_service) =
-            Proxy::create(proxy_config, proxy_chn, blockchain_api).await?;
+            Proxy::create(proxy_config, proxy_chn, blockchain_api.clone()).await?;
 
         Ok((
             Self {
@@ -55,6 +55,7 @@ impl Vintage {
                 admin_2_vin_service,
             },
             block_consensus,
+            blockchain_api,
         ))
     }
 

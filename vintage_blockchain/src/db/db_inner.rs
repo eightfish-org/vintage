@@ -5,13 +5,12 @@ use crate::db::{
     UpdateEntityTxTableR, UpdateEntityTxTableW, UpgradeWasmTableR, UpgradeWasmTableW, WasmTxTableR,
     WasmTxTableW,
 };
-use crate::tx::TxId;
 use redb::Database;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::path::Path;
 use vintage_msg::{
-    ActTx, Block, BlockHash, BlockHeight, BlockTimestamp, EntityHash, EntityId, Model, Proto,
+    ActTx, Block, BlockHash, BlockHeight, BlockTimestamp, EntityHash, EntityId, Model, Proto, TxId,
     UpdateEntityTx, WasmTx,
 };
 use vintage_utils::CalcHash;
@@ -51,17 +50,17 @@ impl BlockChainDbInner {
         Ok(table.get_block_height()?)
     }
 
-    pub fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
+    pub fn get_block_in_db(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
         let db_read = self.database.begin_read()?;
         let table = BlockTableR::open_table(&db_read)?;
-        table.get_block(height)
+        table.get_block_in_db(height)
     }
 
-    pub fn get_network_block(&self, height: BlockHeight) -> anyhow::Result<Block> {
+    pub fn get_block(&self, height: BlockHeight) -> anyhow::Result<Block> {
         let db_read = self.database.begin_read()?;
         let block = {
             let table = BlockTableR::open_table(&db_read)?;
-            table.get_block(height)?
+            table.get_block_in_db(height)?
         };
         let mut act_txs = Vec::new();
         {

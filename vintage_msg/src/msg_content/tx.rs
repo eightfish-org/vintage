@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use vintage_utils::{CalcHash, Hashed};
 
+pub type TxId = Hashed;
 pub type Action = String;
 pub type Proto = String;
 pub type Model = String;

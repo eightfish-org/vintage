@@ -1,7 +1,6 @@
 use crate::db::{UpdateEntityTxPoolTable, UpdateEntityTxPoolTableW};
-use crate::tx::TxId;
 use redb::ReadableTable;
-use vintage_msg::UpdateEntityTx;
+use vintage_msg::{TxId, UpdateEntityTx};
 use vintage_utils::{BincodeDeserialize, RedbBytes, RedbBytes32};
 
 impl<TABLE> UpdateEntityTxPoolTable<TABLE>
