@@ -8,8 +8,14 @@ use std::cmp::Ordering;
 pub enum RedbStr {}
 
 impl RedbValue for RedbStr {
-    type SelfType<'a> = &'a str where Self: 'a;
-    type AsBytes<'a> = &'a str where Self: 'a;
+    type SelfType<'a>
+        = &'a str
+    where
+        Self: 'a;
+    type AsBytes<'a>
+        = &'a str
+    where
+        Self: 'a;
 
     fn fixed_width() -> Option<usize> {
         None
@@ -50,8 +56,14 @@ impl RedbKey for RedbStr {
 pub enum RedbBytes {}
 
 impl RedbValue for RedbBytes {
-    type SelfType<'a> = &'a [u8] where Self: 'a;
-    type AsBytes<'a> = &'a [u8] where Self: 'a;
+    type SelfType<'a>
+        = &'a [u8]
+    where
+        Self: 'a;
+    type AsBytes<'a>
+        = &'a [u8]
+    where
+        Self: 'a;
 
     fn fixed_width() -> Option<usize> {
         None
@@ -90,8 +102,14 @@ impl RedbKey for RedbBytes {
 pub enum RedbBytesN<const N: usize> {}
 
 impl<const N: usize> RedbValue for RedbBytesN<N> {
-    type SelfType<'a> = &'a [u8; N] where Self: 'a;
-    type AsBytes<'a> = &'a [u8; N] where Self: 'a;
+    type SelfType<'a>
+        = &'a [u8; N]
+    where
+        Self: 'a;
+    type AsBytes<'a>
+        = &'a [u8; N]
+    where
+        Self: 'a;
 
     fn fixed_width() -> Option<usize> {
         Some(N)

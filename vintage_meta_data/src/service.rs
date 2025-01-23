@@ -32,8 +32,11 @@ where
         // entities
         let mut entities = Vec::new();
         for ue_tx in block.ue_txs {
-            for entity in ue_tx.entities {
+            let tx_id = ue_tx.calc_hash();
+            for (index, entity) in ue_tx.entities.into_iter().enumerate() {
                 entities.push((
+                    tx_id.clone(),
+                    index,
                     ue_tx.proto.clone(),
                     Entity {
                         model: entity.model,
@@ -56,7 +59,7 @@ where
         }
 
         self.db
-            .save_block(block_height, entities, sql_migrations)
+            .save_block(block_height, block.timestamp, entities, sql_migrations)
             .await?;
         *block_height_ref = block_height;
         Ok(true)
