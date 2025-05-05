@@ -69,14 +69,16 @@ fn block_event(
 
     let mut ue_events = Vec::new();
     for ue_tx in ue_txs {
+        let model = ue_tx.model;
         ue_events.push(UpdateEntityEvent {
             req_id: ue_tx.req_id,
             proto: ue_tx.proto,
+            model: model.clone(),
             entity_keys: ue_tx
                 .entities
                 .into_iter()
                 .map(|entity| EntityKey {
-                    model: entity.model,
+                    model: model.clone(),
                     id: entity.id,
                 })
                 .collect(),

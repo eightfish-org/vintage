@@ -238,7 +238,7 @@ impl BlockChainDbInner {
                 table_ue_tx.insert_tx(tx_id, &tx)?;
                 for entity in &tx.entities {
                     table_entity
-                        .insert_entity(&tx.proto, &entity.model, &entity.id, &entity.hash)
+                        .insert_entity(&tx.proto, &tx.model, &entity.id, &entity.hash)
                         .unwrap()
                 }
             }

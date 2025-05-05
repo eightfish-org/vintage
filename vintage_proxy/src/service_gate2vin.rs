@@ -1,4 +1,6 @@
-use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_DELETE, ACTION_PUT, ACTION_UPDATE_INDEX};
+use crate::constants::{
+    ACTION_CHECK_PAIR_LIST, ACTION_DELETE, ACTION_POST, ACTION_PUT, ACTION_UPDATE_INDEX,
+};
 use crate::io_object::read_msg;
 use crate::io_playload::ReqPayload;
 use crate::{req_payload_json, InputOutputObject};
@@ -82,6 +84,7 @@ where
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UpdateEntityTx(UpdateEntityTx {
                 proto: object.proto,
+                model: object.model,
                 req_id: entities_payload.reqid,
                 entities: entities_payload.reqdata,
             }));
