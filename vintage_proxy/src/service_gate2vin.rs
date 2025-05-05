@@ -1,4 +1,4 @@
-use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_UPDATE_INDEX};
+use crate::constants::{ACTION_CHECK_PAIR_LIST, ACTION_POST, ACTION_DELETE, ACTION_PUT, ACTION_UPDATE_INDEX};
 use crate::io_object::read_msg;
 use crate::io_playload::ReqPayload;
 use crate::{req_payload_json, InputOutputObject};
@@ -45,7 +45,10 @@ where
         loop {
             let msg_obj = read_msg(&mut pubsub_stream, GATE_2_VIN).await?;
 
-            if &msg_obj.action == ACTION_POST {
+            if &msg_obj.action == ACTION_POST
+                || &msg_obj.action == ACTION_PUT
+                || &msg_obj.action == ACTION_DELETE
+            {
                 self.post(msg_obj);
             } else if &msg_obj.action == ACTION_UPDATE_INDEX {
                 self.update_index(msg_obj);

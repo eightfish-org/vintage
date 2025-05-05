@@ -10,5 +10,7 @@ pub(crate) const ACTION_UPGRADE_WASM: &str = "upgrade_wasm";
 
 // worker:protocol action
 pub(crate) const ACTION_POST: &str = "post";
+pub(crate) const ACTION_PUT: &str = "put";
+pub(crate) const ACTION_DELETE: &str = "delete";
 pub(crate) const ACTION_UPDATE_INDEX: &str = "update_index";
 pub(crate) const ACTION_CHECK_PAIR_LIST: &str = "check_pair_list";
