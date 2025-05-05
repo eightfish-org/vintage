@@ -95,7 +95,7 @@ impl Vin2Worker {
         let output = InputOutputObject {
             action: ACTION_UPDATE_INDEX.to_owned(),
             proto: event.proto,
-            model: "".to_owned(),
+            model: event.model,
             data: payload.to_string().as_bytes().to_vec(),
             ext: vec![],
         };
