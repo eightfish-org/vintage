@@ -69,9 +69,9 @@ fn random_act_tx() -> ActTx {
 fn random_ue_tx() -> UpdateEntityTx {
     UpdateEntityTx {
         proto: "proto_1".to_string(),
+        model: "model_1".to_string(),
         req_id: random_string(),
         entities: vec![Entity {
-            model: "model_1".to_string(),
             id: random_string(),
             hash: random_string(),
         }],

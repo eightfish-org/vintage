@@ -28,7 +28,7 @@ impl MetaDataDb {
         &self,
         block_height: BlockHeight,
         timestamp: BlockTimestamp,
-        entities: Vec<(TxId, usize, Proto, Entity)>, // tx_id, index, proto, entity
+        entities: Vec<(TxId, usize, Proto, Model, Entity)>, // tx_id, index, proto, model, entity
         sql_migrations: Vec<(TxId, Proto, String, u64)>, // tx_id, proto, sql_migration, after_blocks
     ) -> anyhow::Result<()> {
         let db = self.db.clone();
@@ -129,7 +129,7 @@ impl MetaDataDbInner {
         &mut self,
         block_height: BlockHeight,
         block_timestamp: BlockTimestamp,
-        entities: Vec<(TxId, usize, Proto, Entity)>,
+        entities: Vec<(TxId, usize, Proto, Model, Entity)>,
         sql_migrations: Vec<(TxId, Proto, String, u64)>,
     ) -> rusqlite::Result<()> {
         // 开始事务
@@ -141,10 +141,10 @@ impl MetaDataDbInner {
         )?;
 
         // 插入 entities 数据
-        for (tx_id, entity_index, proto, entity) in entities {
+        for (tx_id, entity_index, proto, model, entity) in entities {
             transaction.execute(
                 "INSERT OR REPLACE INTO entity (tx_id, entity_index, block_height, block_timestamp, proto, module, entity_id, entity_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8);",
-                rusqlite::params![tx_id.as_bytes(), entity_index, block_height, block_timestamp, proto, entity.model, entity.id, entity.hash],
+                rusqlite::params![tx_id.as_bytes(), entity_index, block_height, block_timestamp, proto, model, entity.id, entity.hash],
             )?;
         }
 

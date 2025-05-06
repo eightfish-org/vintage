@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActEvent, ActTx, BlockEvent, BlockHash, BlockHeight, EntityKey, MsgToProxy, UpdateEntityEvent,
+    ActEvent, ActTx, BlockEvent, BlockHash, BlockHeight, MsgToProxy, UpdateEntityEvent,
     UpdateEntityTx, UpgradeWasmEvent, UploadWasmEvent, WasmHash, WasmTx,
 };
 use vintage_utils::{Hashed, SendMsg, Timestamp};
@@ -74,14 +74,7 @@ fn block_event(
             req_id: ue_tx.req_id,
             proto: ue_tx.proto,
             model: model.clone(),
-            entity_keys: ue_tx
-                .entities
-                .into_iter()
-                .map(|entity| EntityKey {
-                    model: model.clone(),
-                    id: entity.id,
-                })
-                .collect(),
+            entity_ids: ue_tx.entities.into_iter().map(|entity| entity.id).collect(),
         })
     }
 

@@ -36,12 +36,6 @@ impl CalcHash for ActTx {
 pub type EntityId = String;
 pub type EntityHash = String;
 
-#[derive(Serialize)]
-pub struct EntityKey {
-    pub model: Model,
-    pub id: EntityId,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entity {
     pub id: EntityId,

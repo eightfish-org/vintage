@@ -89,7 +89,7 @@ impl Vin2Worker {
     }
 
     async fn on_ue_event(&mut self, event: UpdateEntityEvent) {
-        let payload = req_payload_json(&event.req_id, &event.entity_keys);
+        let payload = req_payload_json(&event.req_id, &event.entity_ids);
 
         let proto = event.proto.clone();
         let output = InputOutputObject {

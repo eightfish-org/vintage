@@ -38,8 +38,8 @@ where
                     tx_id.clone(),
                     index,
                     ue_tx.proto.clone(),
+                    ue_tx.model.clone(),
                     Entity {
-                        model: entity.model,
                         id: entity.id,
                         hash: entity.hash,
                     },
