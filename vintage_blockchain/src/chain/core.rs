@@ -3,14 +3,14 @@ use crate::BlockState;
 use crate::DownloadWasmTask;
 use crate::MsgToProxySender;
 use crate::WasmDb;
-use crate::{get_act_txs_from_pool, get_wasm_txs_from_pool, remove_txs_from_pool, TxId, TxPool};
+use crate::{get_act_txs_from_pool, get_wasm_txs_from_pool, remove_txs_from_pool, TxPool};
 use crate::{BlockChainDb, BlockInDb};
 use crate::{MAX_ACT_COUNT_PER_BLOCK, MAX_UE_TX_COUNT_PER_BLOCK};
 use anyhow::anyhow;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use std::time::Duration;
-use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, UpdateEntityTx, WasmHash, WasmTx};
+use vintage_msg::{ActTx, Block, BlockHash, BlockHeight, TxId, UpdateEntityTx, WasmHash, WasmTx};
 use vintage_utils::{current_timestamp, CalcHash, ServiceStarter, Timestamp};
 
 pub type ArcBlockChainCore = Arc<tokio::sync::Mutex<BlockChainCore>>;
@@ -55,7 +55,7 @@ impl BlockChainCore {
     pub(crate) async fn new_block(&self, height: u64) -> anyhow::Result<(Block, BlockHash)> {
         self.check_block_height(height).await?;
         // prev block
-        let prev_block = self.get_block(height - 1).await?;
+        let prev_block = self.get_block_in_db(height - 1).await?;
 
         // tx
         let (act_tx_ids, act_txs) =
@@ -100,7 +100,7 @@ impl BlockChainCore {
         block_hash: &BlockHash,
     ) -> anyhow::Result<()> {
         // prev block
-        let prev_block = self.get_block(height - 1).await?;
+        let prev_block = self.get_block_in_db(height - 1).await?;
 
         // tx
         let act_tx_ids = Self::act_tx_ids_of(&block.act_txs);
@@ -145,7 +145,7 @@ impl BlockChainCore {
     ) -> anyhow::Result<()> {
         self.check_block_height(height).await?;
         // prev block
-        let prev_block = self.get_block(height - 1).await?;
+        let prev_block = self.get_block_in_db(height - 1).await?;
 
         // tx
         let act_tx_ids = Self::act_tx_ids_of(&block.act_txs);
@@ -238,8 +238,8 @@ impl BlockChainCore {
         }
     }
 
-    async fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
-        self.blockchain_db.get_block(height).await
+    async fn get_block_in_db(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
+        self.blockchain_db.get_block_in_db(height).await
     }
 
     async fn check_ue_txs_exist_in_pool(&self, ue_tx_ids: Vec<TxId>) -> anyhow::Result<()> {

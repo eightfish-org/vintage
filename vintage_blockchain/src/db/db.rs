@@ -1,11 +1,10 @@
 use crate::chain::{BlockState, GENESIS_BLOCK_HASH, GENESIS_BLOCK_HEIGHT, GENESIS_BLOCK_TIMESTAMP};
 use crate::db::{BlockChainDbInner, BlockInDb};
-use crate::tx::TxId;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 use vintage_msg::{
-    ActTx, Block, BlockHash, BlockHeight, BlockTimestamp, EntityHash, EntityId, Model, Proto,
+    ActTx, Block, BlockHash, BlockHeight, BlockTimestamp, EntityHash, EntityId, Model, Proto, TxId,
     UpdateEntityTx, WasmTx,
 };
 
@@ -35,7 +34,7 @@ impl BlockChainDb {
         spawn_blocking(move || db.get_block_height()).await?
     }
 
-    pub async fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
+    pub async fn get_block_in_db(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
         if height == GENESIS_BLOCK_HEIGHT {
             Ok(BlockInDb {
                 block_hash: GENESIS_BLOCK_HASH,
@@ -47,11 +46,11 @@ impl BlockChainDb {
             })
         } else {
             let db = self.db.clone();
-            spawn_blocking(move || db.get_block(height)).await?
+            spawn_blocking(move || db.get_block_in_db(height)).await?
         }
     }
 
-    pub async fn get_network_block(&self, height: BlockHeight) -> anyhow::Result<Block> {
+    pub async fn get_block(&self, height: BlockHeight) -> anyhow::Result<Block> {
         if height == GENESIS_BLOCK_HEIGHT {
             Ok(Block {
                 timestamp: GENESIS_BLOCK_TIMESTAMP,
@@ -61,7 +60,7 @@ impl BlockChainDb {
             })
         } else {
             let db = self.db.clone();
-            spawn_blocking(move || db.get_network_block(height)).await?
+            spawn_blocking(move || db.get_block(height)).await?
         }
     }
 

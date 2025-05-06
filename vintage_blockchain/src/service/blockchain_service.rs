@@ -1,15 +1,15 @@
 use crate::db::BlockChainDb;
 use crate::network::{BroadcastMsg, MsgToNetworkSender, ReqBlock, ReqBlockHash, RequestMsg};
 use crate::proxy::MsgToProxySender;
-use crate::tx::{TxId, TxPool};
+use crate::tx::TxPool;
 use crate::wasm_db::WasmDb;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActTx, Block, BlockHash, MsgToBlockChain, NetworkRequestId, NodeId, UpdateEntityTx, UploadWasm,
-    WasmHash, WasmTx,
+    ActTx, Block, BlockHash, MsgToBlockChain, NetworkRequestId, NodeId, TxId, UpdateEntityTx,
+    UploadWasm, WasmHash, WasmTx,
 };
 use vintage_utils::{BincodeDeserialize, CalcHash, Service};
 
@@ -138,7 +138,11 @@ impl BlockChainService {
         log::debug!("request_block_hash_handler from node: {}", node_id);
         let mut hash_list: Vec<BlockHash> = Vec::new();
         for index in 0..req.count {
-            match self.blockchain_db.get_block(req.begin_height + index).await {
+            match self
+                .blockchain_db
+                .get_block_in_db(req.begin_height + index)
+                .await
+            {
                 Ok(block) => {
                     hash_list.push(block.block_hash);
                 }
@@ -168,7 +172,7 @@ impl BlockChainService {
         for index in 0..req.count {
             let block = self
                 .blockchain_db
-                .get_network_block(req.begin_height + index)
+                .get_block(req.begin_height + index)
                 .await?;
             block_list.push(block);
         }

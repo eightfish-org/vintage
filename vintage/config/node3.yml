@@ -3,8 +3,12 @@ blockchain:
   db_path: vintage3.db
   wasm_db_path: wasm3.db
 proxy:
-  min_after_blocks: 10
   redis_addr: redis://127.0.0.1:6379
+  min_after_blocks: 10
+http:
+  port: 8083
+meta_data:
+  db_path: meta_data_3.db
 node:
   block_interval: 1000
   id: 3

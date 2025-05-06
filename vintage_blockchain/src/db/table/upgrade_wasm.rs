@@ -1,6 +1,5 @@
-use crate::tx::TxId;
 use redb::ReadableTable;
-use vintage_msg::BlockHeight;
+use vintage_msg::{BlockHeight, TxId};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize, RedbBytes};
 
 define_redb_table! {

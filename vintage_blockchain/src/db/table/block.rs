@@ -1,9 +1,8 @@
 use crate::chain::BlockState;
-use crate::tx::TxId;
 use anyhow::anyhow;
 use redb::ReadableTable;
 use serde::{Deserialize, Serialize};
-use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp};
+use vintage_msg::{BlockHash, BlockHeight, BlockTimestamp, TxId};
 use vintage_utils::{define_redb_table, BincodeDeserialize, BincodeSerialize, RedbBytes};
 
 define_redb_table! {
@@ -24,7 +23,7 @@ impl<TABLE> BlockTable<TABLE>
 where
     TABLE: ReadableTable<BlockHeight, RedbBytes>,
 {
-    pub fn get_block(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
+    pub fn get_block_in_db(&self, height: BlockHeight) -> anyhow::Result<BlockInDb> {
         match self.get(height)? {
             Some(access) => {
                 let (value, _bytes_read) = BlockInDb::bincode_deserialize(access.value())?;

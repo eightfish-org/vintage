@@ -18,8 +18,8 @@ use vintage_utils::ServiceStarter;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProxyConfig {
-    pub min_after_blocks: u64,
     pub redis_addr: String,
+    pub min_after_blocks: u64,
 }
 
 pub enum Proxy {}

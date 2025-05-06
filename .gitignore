@@ -1,5 +1,6 @@
 **/target
 vintage*.db
 wasm*.db
+meta_data*.db
 # Rust Rover
 .idea
