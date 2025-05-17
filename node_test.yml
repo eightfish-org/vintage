@@ -1,0 +1,34 @@
+mode: SingleNodeDev
+blockchain:
+  db_path: vintage1.db
+  wasm_db_path: wasm1.db
+proxy:
+  redis_addr: redis://127.0.0.1:6379
+  min_after_blocks: 10
+http:
+  port: 8081
+meta_data:
+  db_path: meta_data_1.db
+node:
+  block_interval: 1000
+  id: 1
+  name: Node1
+  listen_addr: 127.0.0.1:8001
+  propose_weight: 1
+  vote_weight: 1
+  peers:
+    - id: 2
+      name: Node2
+      address: 127.0.0.1:8002
+      propose_weight: 1
+      vote_weight: 1
+    - id: 3
+      name: Node3
+      address: 127.0.0.1:8003
+      propose_weight: 1
+      vote_weight: 1
+    - id: 4
+      name: Node4
+      address: 127.0.0.1:8004
+      propose_weight: 1
+      vote_weight: 1

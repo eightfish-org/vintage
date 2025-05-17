@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use futures::Stream;
 use futures::StreamExt;
 use redis::Msg;
@@ -19,6 +20,11 @@ pub(crate) async fn read_msg(
 ) -> anyhow::Result<InputOutputObject> {
     let msg = pubsub_stream.next().await;
     log::info!("received msg from channel {}", channel_name);
+    if msg.is_none() {
+        log::error!("received msg from channel {} is None.", channel_name);
+
+        return Err(anyhow!("msg from channel {} is None.", channel_name));
+    }
 
     let msg_payload: Vec<u8> = msg.unwrap().get_payload()?;
     let msg_obj: InputOutputObject = serde_json::from_slice(&msg_payload).unwrap();

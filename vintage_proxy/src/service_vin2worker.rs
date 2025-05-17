@@ -71,9 +71,9 @@ impl Service for Vin2Worker {
 
 impl Vin2Worker {
     async fn on_block_height_event(&mut self, height: BlockHeight, block_hash: &BlockHash) {
-        let playload = serde_json::to_vec(&json!({
+        let payload = serde_json::to_vec(&json!({
             "block_height": height,
-            "block_hash": block_hash,
+            "block_hash": block_hash.to_string(),
         }))
         .unwrap();
 
@@ -81,7 +81,7 @@ impl Vin2Worker {
             action: ACTION_BLOCK_HEIGHT.to_owned(),
             proto: "".to_owned(),
             model: "".to_owned(),
-            data: playload,
+            data: payload,
             ext: vec![],
         };
 
@@ -112,7 +112,7 @@ impl Vin2Worker {
     ) {
         let ext = json!({
             "block_height": height,
-            "block_hash": block_hash,
+            "block_hash": block_hash.to_string(),
             "time": timestamp,
             "nonce": event.act_number,
             "randomvec": event.random,
