@@ -55,15 +55,17 @@ impl Admin2Vin {
     fn upload_wasm(&self, object: InputOutputObject) -> anyhow::Result<()> {
         #[derive(Deserialize)]
         struct Payload {
+            wasm_file: Vec<u8>,
             sql_file: String,
             afterblocks: u64,
+            // digest: String,
         }
-        let payload: Payload = serde_json::from_slice(&object.ext)?;
+        let payload: Payload = serde_json::from_slice(&object.data)?;
 
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UploadWasm(UploadWasm {
                 proto: object.proto,
-                wasm_binary: object.data,
+                wasm_binary: payload.wasm_file,
                 sql: payload.sql_file,
                 after_blocks: max(max(10, self.min_after_blocks), payload.afterblocks),
             }));
