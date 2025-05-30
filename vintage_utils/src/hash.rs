@@ -25,7 +25,7 @@ impl Hashed {
 impl Display for Hashed {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for byte in &self.0 {
-            write!(f, "{:02X}", byte)?;
+            write!(f, "{:02x}", byte)?;
         }
         Ok(())
     }
