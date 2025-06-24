@@ -57,9 +57,11 @@ impl Admin2Vin {
         struct Payload {
             sql_file: String,
             afterblocks: u64,
+            digest: String,
         }
         let payload: Payload = serde_json::from_slice(&object.ext)?;
 
+        let _digest = payload.digest;
         self.blockchain_msg_sender
             .send_msg(MsgToBlockChain::UploadWasm(UploadWasm {
                 proto: object.proto,

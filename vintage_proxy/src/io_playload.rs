@@ -14,7 +14,7 @@ where
 {
     json!({
         "reqid": req_id,
-        "reqdata": req_data,
+        "reqdata": Some(req_data),
         "reqheaders": std::collections::HashMap::<String, String>::new(),
     })
 }
