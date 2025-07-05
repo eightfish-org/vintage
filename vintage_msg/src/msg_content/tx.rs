@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use vintage_utils::{CalcHash, Hashed};
 
+pub type TxId = Hashed;
 pub type Action = String;
 pub type Proto = String;
 pub type Model = String;
@@ -58,6 +59,7 @@ impl CalcHash for UpdateEntityTx {
         hasher.update(&self.model);
         hasher.update(&self.req_id);
         for entity in &self.entities {
+            // hasher.update(&entity.model);
             hasher.update(&entity.id);
             hasher.update(&entity.hash);
         }
@@ -68,21 +70,30 @@ impl CalcHash for UpdateEntityTx {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // wasm
 
+pub struct UploadWasm {
+    pub proto: Proto,
+    pub wasm_binary: Vec<u8>,
+    pub sql: String,
+    pub after_blocks: u64,
+}
+
 pub type WasmHash = Hashed;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WasmId {
+pub struct WasmTx {
     pub proto: Proto,
     pub wasm_hash: WasmHash,
+    pub sql: String,
+    pub after_blocks: u64,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WasmInfo {
-    pub block_interval: u64,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WasmTx {
-    pub wasm_id: WasmId,
-    pub wasm_info: WasmInfo,
+impl CalcHash for WasmTx {
+    fn calc_hash(&self) -> Hashed {
+        let mut hasher = Sha256::new();
+        hasher.update(&self.proto);
+        hasher.update(&self.wasm_hash);
+        hasher.update(&self.sql);
+        hasher.update(&self.after_blocks.to_be_bytes());
+        hasher.into()
+    }
 }

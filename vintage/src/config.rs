@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use vintage_blockchain::BlockChainConfig;
+use vintage_http::HttpConfig;
+use vintage_meta_data::MetaDataConfig;
 use vintage_network::config::NodeConfig;
 use vintage_proxy::ProxyConfig;
 
@@ -29,6 +31,8 @@ pub struct VintageConfig {
     pub blockchain: BlockChainConfig,
     pub proxy: ProxyConfig,
     pub node: NodeConfig,
+    pub http: HttpConfig,
+    pub meta_data: MetaDataConfig,
 }
 
 pub fn load_config(file_path: &str) -> Result<VintageConfig, anyhow::Error> {

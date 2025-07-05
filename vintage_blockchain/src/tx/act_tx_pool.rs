@@ -1,13 +1,12 @@
-use crate::tx::TxId;
 use std::collections::HashMap;
-use vintage_msg::ActTx;
+use vintage_msg::{ActTx, TxId};
 
 pub fn get_act_txs_from_pool(pool: &HashMap<TxId, ActTx>, count: usize) -> (Vec<TxId>, Vec<ActTx>) {
-    let mut act_tx_ids = Vec::new();
-    let mut act_txs = Vec::new();
-    for (hash, act_tx) in pool.iter().take(count) {
-        act_tx_ids.push(hash.clone());
-        act_txs.push(act_tx.clone());
+    let mut tx_ids = Vec::new();
+    let mut txs = Vec::new();
+    for (tx_id, tx) in pool.iter().take(count) {
+        tx_ids.push(tx_id.clone());
+        txs.push(tx.clone());
     }
-    (act_tx_ids, act_txs)
+    (tx_ids, txs)
 }

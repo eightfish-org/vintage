@@ -61,7 +61,7 @@ impl DownloadWasmTask {
         );
 
         self.proxy_msg_sender
-            .send_wasm_binary(self.wasm_hash, wasm_binary);
+            .send_upload_wasm_event(self.wasm_hash, wasm_binary);
         Ok(())
     }
 }

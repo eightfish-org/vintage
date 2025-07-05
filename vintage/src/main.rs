@@ -11,7 +11,10 @@ use crate::config::load_config;
 use crate::logger::env_logger_init;
 use crate::node::{VintageMultiNodes, VintageSingleNode};
 use crate::test::start_test;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
+use vintage_http::HttpService;
+use vintage_meta_data::{MetaDataDb, MetaDataService};
 use vintage_msg::msg_channels;
 use vintage_network::client::NetworkClient;
 use vintage_network::request::NetworkRequestMgr;
@@ -20,7 +23,7 @@ use vintage_network::request::NetworkRequestMgr;
 async fn main() -> anyhow::Result<()> {
     // if cfg!(debug_assertions) {
     //     unsafe {
-    //         env::set_var("RUST_BACKTRACE", "full");
+    //         std::env::set_var("RUST_BACKTRACE", "full");
     //     }
     // }
 
@@ -58,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     let client = NetworkClient::new(request_mgr.clone(), network_msg_sender.clone());
 
     // vintage
-    let (vintage, block_consensus) = Vintage::create(
+    let (vintage, block_consensus, blockchain_api) = Vintage::create(
         config.blockchain,
         config.proxy,
         config.node.block_interval,
@@ -87,7 +90,21 @@ async fn main() -> anyhow::Result<()> {
             .start()
     };
 
+    // meta data
+    let meta_data_db = MetaDataDb::create(config.meta_data.db_path).await?;
+    let join_meta_data_service =
+        MetaDataService::create(meta_data_db.clone(), blockchain_api).start();
+
+    // http
+    let addr = SocketAddr::V4(SocketAddrV4::new(
+        Ipv4Addr::new(0, 0, 0, 0),
+        config.http.port,
+    ));
+    let join_http_service = HttpService::create(addr, meta_data_db).start();
+
     join_vintage.await?;
     join_node.await?;
+    join_meta_data_service.await?;
+    join_http_service.await?;
     Ok(())
 }

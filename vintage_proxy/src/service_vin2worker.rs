@@ -1,14 +1,17 @@
 use crate::constants::{
-    ACTION_NEW_BLOCK_HEIGHT, ACTION_UPDATE_INDEX, ACTION_UPGRADE_WASM, ACTION_UPLOAD_WASM,
+    ACTION_BLOCK_HEIGHT, ACTION_UPDATE_INDEX, ACTION_UPGRADE_WASM, ACTION_UPLOAD_WASM,
 };
 use crate::VIN_2_WORKER;
-use crate::{payload_json, InputOutputObject};
+use crate::{req_payload_json, InputOutputObject};
 use async_trait::async_trait;
 use redis::aio::Connection;
 use redis::AsyncCommands;
 use serde_json::json;
 use tokio::sync::mpsc;
-use vintage_msg::{ActEvent, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, WasmHash, WasmId};
+use vintage_msg::{
+    ActEvent, BlockHash, BlockHeight, MsgToProxy, Proto, UpdateEntityEvent, UpgradeWasmEvent,
+    UploadWasmEvent,
+};
 use vintage_utils::{Service, Timestamp};
 
 pub struct Vin2Worker {
@@ -33,21 +36,29 @@ impl Service for Vin2Worker {
     async fn service(mut self, _input: Self::Input) -> Self::Output {
         loop {
             match self.msg_receiver.recv().await {
-                Some(block_persisted) => match block_persisted {
-                    MsgToProxy::BlockEvent(event) => {
-                        for ue_event in event.ue_events {
+                Some(msg) => match msg {
+                    MsgToProxy::BlockEvent(block_event) => {
+                        self.on_block_height_event(block_event.height, &block_event.block_hash)
+                            .await;
+                        for ue_event in block_event.ue_events {
                             self.on_ue_event(ue_event).await;
                         }
-                        for act_event in event.act_events {
-                            self.on_act_event(event.timestamp, act_event).await;
+                        for act_event in block_event.act_events {
+                            self.on_act_event(
+                                block_event.height,
+                                &block_event.block_hash,
+                                block_event.timestamp,
+                                act_event,
+                            )
+                            .await;
                         }
-                        self.on_block_height_event(event.height).await;
-                        for wasm_id in event.upgrade_wasm_ids {
-                            self.on_upgrade_wasm_event(event.height, wasm_id).await;
+                        for upgrade_wasm_events in block_event.upgrade_wasm_events {
+                            self.on_upgrade_wasm_event(block_event.height, upgrade_wasm_events)
+                                .await;
                         }
                     }
-                    MsgToProxy::WasmBinary(wasm_hash, wasm_binary) => {
-                        self.on_upload_wasm_event(wasm_hash, wasm_binary).await;
+                    MsgToProxy::UploadWasmEvent(event) => {
+                        self.on_upload_wasm_event(event).await;
                     }
                 },
                 None => {
@@ -59,12 +70,18 @@ impl Service for Vin2Worker {
 }
 
 impl Vin2Worker {
-    async fn on_block_height_event(&mut self, height: BlockHeight) {
+    async fn on_block_height_event(&mut self, height: BlockHeight, block_hash: &BlockHash) {
+        let payload = serde_json::to_vec(&json!({
+            "block_height": height,
+            "block_hash": block_hash.to_string(),
+        }))
+        .unwrap();
+
         let output = InputOutputObject {
-            action: ACTION_NEW_BLOCK_HEIGHT.to_owned(),
+            action: ACTION_BLOCK_HEIGHT.to_owned(),
             proto: "".to_owned(),
             model: "".to_owned(),
-            data: height.to_be_bytes().to_vec(),
+            data: payload,
             ext: vec![],
         };
 
@@ -72,30 +89,31 @@ impl Vin2Worker {
     }
 
     async fn on_ue_event(&mut self, event: UpdateEntityEvent) {
-        let UpdateEntityEvent {
-            proto,
-            model,
-            req_id,
-            entity_ids,
-        } = event;
+        let ids = event.entity_ids.join(",");
+        let payload = req_payload_json(&event.req_id, &ids);
 
-        for entity_id in entity_ids {
-            let payload = payload_json(&req_id, entity_id);
+        let proto = event.proto.clone();
+        let output = InputOutputObject {
+            action: ACTION_UPDATE_INDEX.to_owned(),
+            proto: event.proto,
+            model: event.model,
+            data: payload.to_string().as_bytes().to_vec(),
+            ext: vec![],
+        };
 
-            let output = InputOutputObject {
-                action: ACTION_UPDATE_INDEX.to_owned(),
-                proto: proto.clone(),
-                model: model.clone(),
-                data: payload.to_string().as_bytes().to_vec(),
-                ext: vec![],
-            };
-
-            self.publish_vin_2_worker(Some(&proto), &output).await;
-        }
+        self.publish_vin_2_worker(Some(&proto), &output).await;
     }
 
-    async fn on_act_event(&mut self, timestamp: Timestamp, event: ActEvent) {
+    async fn on_act_event(
+        &mut self,
+        height: BlockHeight,
+        block_hash: &BlockHash,
+        timestamp: Timestamp,
+        event: ActEvent,
+    ) {
         let ext = json!({
+            "block_height": height,
+            "block_hash": block_hash.to_string(),
             "time": timestamp,
             "nonce": event.act_number,
             "randomvec": event.random,
@@ -113,36 +131,36 @@ impl Vin2Worker {
         self.publish_vin_2_worker(Some(&proto), &output).await;
     }
 
-    async fn on_upload_wasm_event(&mut self, wasm_hash: WasmHash, wasm_binary: Vec<u8>) {
+    async fn on_upload_wasm_event(&mut self, event: UploadWasmEvent) {
         log::info!(
             "upload wasm event to worker, hash: {}, size: {}B",
-            wasm_hash,
-            wasm_binary.len()
+            event.wasm_hash,
+            event.wasm_binary.len()
         );
 
         let output = InputOutputObject {
             action: ACTION_UPLOAD_WASM.to_string(),
             proto: "".to_owned(),
             model: "".to_owned(),
-            data: wasm_hash.as_bytes().into(),
-            ext: wasm_binary,
+            data: event.wasm_hash.as_bytes().into(),
+            ext: event.wasm_binary,
         };
         self.publish_vin_2_worker(None, &output).await;
     }
 
-    async fn on_upgrade_wasm_event(&mut self, block_height: BlockHeight, wasm_id: WasmId) {
+    async fn on_upgrade_wasm_event(&mut self, block_height: BlockHeight, event: UpgradeWasmEvent) {
         log::info!(
             "upgrade wasm event to worker, height: {}, proto: {}, hash: {}",
             block_height,
-            wasm_id.proto,
-            wasm_id.wasm_hash
+            event.proto,
+            event.wasm_hash
         );
 
         let output = InputOutputObject {
             action: ACTION_UPGRADE_WASM.to_string(),
-            proto: wasm_id.proto,
+            proto: event.proto,
             model: "".to_owned(),
-            data: wasm_id.wasm_hash.as_bytes().into(),
+            data: event.wasm_hash.as_bytes().into(),
             ext: vec![],
         };
         self.publish_vin_2_worker(None, &output).await;
@@ -157,8 +175,8 @@ impl Vin2Worker {
 
         let result: Result<u32, redis::RedisError> =
             self.redis_conn.publish(channel, output_bytes).await;
-        if let Err(_err) = result {
-            // log::error!("Error publishing to redis: {:?}", err);
+        if let Err(err) = result {
+            log::error!("Error publishing to redis: {:?}", err);
         }
     }
 }

@@ -1,13 +1,12 @@
 use std::collections::HashMap;
-use vintage_msg::{WasmId, WasmInfo, WasmTx};
+use vintage_msg::{TxId, WasmTx};
 
-pub fn get_wasm_txs_from_pool(pool: &HashMap<WasmId, WasmInfo>) -> Vec<WasmTx> {
-    let mut wasm_txs = Vec::new();
-    for (wasm_id, wasm_info) in pool {
-        wasm_txs.push(WasmTx {
-            wasm_id: wasm_id.clone(),
-            wasm_info: wasm_info.clone(),
-        });
+pub fn get_wasm_txs_from_pool(pool: &HashMap<TxId, WasmTx>) -> (Vec<TxId>, Vec<WasmTx>) {
+    let mut tx_ids = Vec::new();
+    let mut txs = Vec::new();
+    for (tx_id, tx) in pool {
+        tx_ids.push(tx_id.clone());
+        txs.push(tx.clone());
     }
-    wasm_txs
+    (tx_ids, txs)
 }

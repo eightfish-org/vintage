@@ -1,11 +1,11 @@
+use anyhow::anyhow;
 use futures::Stream;
 use futures::StreamExt;
 use redis::Msg;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use vintage_msg::{Action, EntityHash, EntityId, Model, Proto, ReqId};
+use vintage_msg::{Action, Model, Proto};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct InputOutputObject {
     pub action: Action,
     pub proto: Proto,
@@ -19,35 +19,31 @@ pub(crate) async fn read_msg(
     channel_name: &str,
 ) -> anyhow::Result<InputOutputObject> {
     let msg = pubsub_stream.next().await;
-    log::info!("received msg from channel {}", channel_name);
-
-    let msg_payload: Vec<u8> = msg.unwrap().get_payload()?;
-    let msg_obj: InputOutputObject = serde_json::from_slice(&msg_payload).unwrap();
-    log::info!(
-        "from redis, msg_obj: {} {} {} {} {}",
-        msg_obj.action,
-        msg_obj.proto,
-        msg_obj.model,
-        msg_obj.data.len(),
-        msg_obj.ext.len()
-    );
-    Ok(msg_obj)
+    if let Some(msg) = msg {
+        log::info!("received msg from channel {}", channel_name);
+        let msg_payload: Vec<u8> = msg.get_payload().expect("redis msg get_payload error.");
+        let msg_obj: InputOutputObject =
+            match serde_json::from_slice::<InputOutputObject>(&msg_payload) {
+                Ok(msg_obj) => {
+                    log::info!(
+                        "from redis, msg_obj: {} {} {} {} {}",
+                        msg_obj.action,
+                        msg_obj.proto,
+                        msg_obj.model,
+                        msg_obj.data.len(),
+                        msg_obj.ext.len()
+                    );
+                    msg_obj
+                }
+                Err(_) => {
+                    log::error!("error when extract IO Object.");
+                    InputOutputObject::default()
+                }
+            };
+        Ok(msg_obj)
+    } else {
+        // if msg is None, it means the sub connection has been broken
+        log::error!("received msg from channel {} is None.", channel_name);
+        Err(anyhow!("msg from channel {} is None.", channel_name))
+    }
 }
-
-pub(crate) fn payload_json<TReqData>(req_id: &ReqId, req_data: TReqData) -> serde_json::Value
-where
-    TReqData: Serialize,
-{
-    json!({
-        "reqid": req_id,
-        "reqdata": req_data,
-    })
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Payload<TReqData> {
-    pub reqid: ReqId,
-    pub reqdata: TReqData,
-}
-
-pub(crate) type EntitiesPayload = Payload<Vec<(EntityId, EntityHash)>>;

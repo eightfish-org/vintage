@@ -1,11 +1,13 @@
 mod constants;
 mod io_object;
+mod io_playload;
 mod service_admin2vin;
 mod service_gate2vin;
 mod service_vin2worker;
 
 use self::constants::*;
 use self::io_object::*;
+use self::io_playload::*;
 pub use self::service_admin2vin::*;
 pub use self::service_gate2vin::*;
 pub use self::service_vin2worker::*;
@@ -17,6 +19,7 @@ use vintage_utils::ServiceStarter;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProxyConfig {
     pub redis_addr: String,
+    pub min_after_blocks: u64,
 }
 
 pub enum Proxy {}
@@ -53,7 +56,7 @@ impl Proxy {
             gate2vin_pub_sub,
         );
         let admin2vin_starter = ServiceStarter::new_with_input(
-            Admin2Vin::new(channels.blockchain_msg_sender),
+            Admin2Vin::new(config.min_after_blocks, channels.blockchain_msg_sender),
             admin2vin_pub_sub,
         );
 

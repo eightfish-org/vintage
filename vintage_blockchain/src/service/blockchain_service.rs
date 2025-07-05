@@ -1,15 +1,15 @@
 use crate::db::BlockChainDb;
 use crate::network::{BroadcastMsg, MsgToNetworkSender, ReqBlock, ReqBlockHash, RequestMsg};
 use crate::proxy::MsgToProxySender;
-use crate::tx::{TxId, TxPool};
+use crate::tx::TxPool;
 use crate::wasm_db::WasmDb;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use vintage_msg::{
-    ActTx, Block, BlockHash, MsgToBlockChain, NetworkRequestId, NodeId, UpdateEntityTx, UploadWasm,
-    WasmHash, WasmId, WasmInfo,
+    ActTx, Block, BlockHash, MsgToBlockChain, NetworkRequestId, NodeId, TxId, UpdateEntityTx,
+    UploadWasm, WasmHash, WasmTx,
 };
 use vintage_utils::{BincodeDeserialize, CalcHash, Service};
 
@@ -138,9 +138,13 @@ impl BlockChainService {
         log::debug!("request_block_hash_handler from node: {}", node_id);
         let mut hash_list: Vec<BlockHash> = Vec::new();
         for index in 0..req.count {
-            match self.blockchain_db.get_block(req.begin_height + index).await {
+            match self
+                .blockchain_db
+                .get_block_in_db(req.begin_height + index)
+                .await
+            {
                 Ok(block) => {
-                    hash_list.push(block.hash);
+                    hash_list.push(block.block_hash);
                 }
                 Err(e) => {
                     log::info!(
@@ -168,7 +172,7 @@ impl BlockChainService {
         for index in 0..req.count {
             let block = self
                 .blockchain_db
-                .get_network_block(req.begin_height + index)
+                .get_block(req.begin_height + index)
                 .await?;
             block_list.push(block);
         }
@@ -239,56 +243,51 @@ impl BlockChainService {
 // admin
 impl BlockChainService {
     async fn upload_wasm_handler(&self, upload_wasm: UploadWasm) -> anyhow::Result<()> {
-        let UploadWasm {
-            proto,
-            wasm_binary,
-            block_interval,
-        } = upload_wasm;
+        let tx = WasmTx {
+            proto: upload_wasm.proto,
+            wasm_hash: upload_wasm.wasm_binary.calc_hash(),
+            sql: upload_wasm.sql,
+            after_blocks: upload_wasm.after_blocks,
+        };
 
-        let wasm_hash = wasm_binary.calc_hash();
         if self
             .wasm_db
-            .try_insert_wasm_binary(wasm_hash.clone(), wasm_binary.clone())
+            .try_insert_wasm_binary(tx.wasm_hash.clone(), upload_wasm.wasm_binary.clone())
             .await?
         {
             log::info!(
                 "wasm file from admin, proto: {}, hash: {}, size: {}B, saved in db",
-                proto,
-                wasm_hash,
-                wasm_binary.len()
+                tx.proto,
+                tx.wasm_hash,
+                upload_wasm.wasm_binary.len()
             );
             self.proxy_msg_sender
-                .send_wasm_binary(wasm_hash.clone(), wasm_binary);
+                .send_upload_wasm_event(tx.wasm_hash.clone(), upload_wasm.wasm_binary);
         } else {
             log::info!(
                 "wasm file from admin, proto: {}, hash: {}, size: {}B, already exists in db",
-                proto,
-                wasm_hash,
-                wasm_binary.len()
+                tx.proto,
+                tx.wasm_hash,
+                upload_wasm.wasm_binary.len()
             );
         }
 
-        self.put_wasm_tx_to_pool(WasmId { proto, wasm_hash }, WasmInfo { block_interval })
-            .await?;
+        self.put_wasm_tx_to_pool(tx.calc_hash(), tx).await?;
 
         Ok(())
     }
 
-    async fn put_wasm_tx_to_pool(&self, key: WasmId, info: WasmInfo) -> anyhow::Result<()> {
+    async fn put_wasm_tx_to_pool(&self, tx_id: TxId, tx: WasmTx) -> anyhow::Result<()> {
         {
-            if self.tx_pool.wasm_txs_guard().contains_key(&key) {
-                return Err(anyhow!(
-                    "wasm tx {} {} already exists in pool",
-                    key.proto,
-                    key.wasm_hash
-                ));
+            if self.tx_pool.wasm_txs_guard().contains_key(&tx_id) {
+                return Err(anyhow!("wasm tx {} already exists in pool", tx_id));
             }
         }
         self.blockchain_db
-            .check_wasm_tx_not_exists(key.clone())
+            .check_wasm_tx_not_exists(tx_id.clone())
             .await?;
         {
-            self.tx_pool.wasm_txs_guard().insert(key, info);
+            self.tx_pool.wasm_txs_guard().insert(tx_id, tx);
         }
         Ok(())
     }
